@@ -1,0 +1,82 @@
+spring:
+  application:
+    name: cinect-spring-backend
+
+  # Database (supports both local PostgreSQL and Supabase)
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/cinect_spring}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${HIKARI_MAX_POOL:10}
+      minimum-idle: ${HIKARI_MIN_IDLE:3}
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # JPA
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: ${SHOW_SQL:false}
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+  # Flyway
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+  # Jackson
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+    time-zone: UTC
+
+# Server
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /api/v1
+
+# JWT
+jwt:
+  secret: ${JWT_SECRET:cinect-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
+  access-token-expiration: ${JWT_ACCESS_EXP:900000}      # 15 minutes
+  refresh-token-expiration: ${JWT_REFRESH_EXP:604800000}  # 7 days
+
+# CORS
+cors:
+  allowed-origins: ${CORS_ORIGINS:http://localhost:3000}
+
+# App
+app:
+  hold-ttl-minutes: ${HOLD_TTL:10}
+  payment-timeout-minutes: ${PAYMENT_TIMEOUT:2}
+  points-per-booking: ${POINTS_PER_BOOKING:10}
+  maintenance-mode: ${MAINTENANCE_MODE:false}
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# Logging
+logging:
+  level:
+    com.cinect: ${LOG_LEVEL:DEBUG}
+    org.springframework.security: WARN
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:WARN}
