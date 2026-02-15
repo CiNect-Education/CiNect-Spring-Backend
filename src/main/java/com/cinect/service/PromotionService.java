@@ -32,6 +32,14 @@ public class PromotionService {
                 .collect(Collectors.toList());
     }
 
+    public List<PromotionResponse> getActive(int limit) {
+        var now = Instant.now();
+        return promotionRepository.findActivePromotions(now).stream()
+                .limit(limit)
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
     public List<PromotionResponse> getTrending() {
         return promotionRepository.findTrending().stream()
                 .map(this::toResponse)
@@ -96,9 +104,9 @@ public class PromotionService {
                 .description(p.getDescription())
                 .code(p.getCode())
                 .discountType(p.getDiscountType())
-                .discountValue(p.getDiscountValue())
-                .minPurchase(p.getMinPurchase())
-                .maxDiscount(p.getMaxDiscount())
+                .discountValue(p.getDiscountValue() != null ? p.getDiscountValue().doubleValue() : null)
+                .minPurchase(p.getMinPurchase() != null ? p.getMinPurchase().doubleValue() : null)
+                .maxDiscount(p.getMaxDiscount() != null ? p.getMaxDiscount().doubleValue() : null)
                 .usageLimit(p.getUsageLimit())
                 .usageCount(p.getUsageCount())
                 .startDate(p.getStartDate())
