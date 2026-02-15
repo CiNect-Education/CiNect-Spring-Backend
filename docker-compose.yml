@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cinect-spring-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cinect_spring
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cinect-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  spring-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cinect-spring-backend
+    ports:
+      - "8081:8081"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/cinect_spring
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}
+      JWT_ACCESS_EXP: ${JWT_ACCESS_EXP:-900000}
+      JWT_REFRESH_EXP: ${JWT_REFRESH_EXP:-604800000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
+      PORT: 8081
+      HOLD_TTL: ${HOLD_TTL:-10}
+      PAYMENT_TIMEOUT: ${PAYMENT_TIMEOUT:-2}
+      POINTS_PER_BOOKING: ${POINTS_PER_BOOKING:-10}
+      MAINTENANCE_MODE: ${MAINTENANCE_MODE:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cinect-network
+
+networks:
+  cinect-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

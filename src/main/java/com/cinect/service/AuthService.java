@@ -1,0 +1,187 @@
+package com.cinect.service;
+
+import com.cinect.dto.request.*;
+import com.cinect.dto.response.AuthResponse;
+import com.cinect.dto.response.UserResponse;
+import com.cinect.entity.Membership;
+import com.cinect.entity.MembershipTier;
+import com.cinect.entity.User;
+import com.cinect.entity.enums.UserRole;
+import com.cinect.exception.BadRequestException;
+import com.cinect.exception.ResourceNotFoundException;
+import com.cinect.exception.UnauthorizedException;
+import com.cinect.repository.MembershipRepository;
+import com.cinect.repository.MembershipTierRepository;
+import com.cinect.repository.RoleRepository;
+import com.cinect.repository.UserRepository;
+import com.cinect.security.JwtService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.Base64;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final MembershipRepository membershipRepository;
+    private final MembershipTierRepository membershipTierRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final AuthenticationManager authenticationManager;
+
+    @Transactional
+    public AuthResponse register(RegisterRequest req) {
+        if (userRepository.existsByEmail(req.getEmail())) {
+            throw new BadRequestException("Email already registered");
+        }
+        var userRole = roleRepository.findByName(UserRole.USER)
+                .orElseThrow(() -> new ResourceNotFoundException("Role USER not found"));
+        var bronzeTier = membershipTierRepository.findByName("Bronze")
+                .orElse(membershipTierRepository.findAll().stream()
+                        .min((a, b) -> Integer.compare(a.getLevel(), b.getLevel()))
+                        .orElseThrow(() -> new ResourceNotFoundException("No membership tier found")));
+
+        var user = User.builder()
+                .email(req.getEmail())
+                .passwordHash(passwordEncoder.encode(req.getPassword()))
+                .fullName(req.getFullName())
+                .phone(req.getPhone())
+                .isActive(true)
+                .emailVerified(false)
+                .roles(new HashSet<>(Set.of(userRole)))
+                .build();
+        user = userRepository.save(user);
+
+        var membership = Membership.builder()
+                .user(user)
+                .tier(bronzeTier)
+                .currentPoints(0)
+                .totalPoints(0)
+                .memberSince(Instant.now())
+                .build();
+        membershipRepository.save(membership);
+
+        var accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), "USER");
+        var refreshToken = jwtService.generateRefreshToken(user.getId());
+        user.setRefreshToken(refreshToken);
+        userRepository.save(user);
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .user(toUserResponse(user))
+                .build();
+    }
+
+    public AuthResponse login(LoginRequest req) {
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
+        var user = userRepository.findByEmail(req.getEmail())
+                .orElseThrow(() -> new BadRequestException("Invalid credentials"));
+        if (!user.getIsActive()) {
+            throw new BadRequestException("Account is deactivated");
+        }
+        var role = user.getRoles().isEmpty() ? "USER" : user.getRoles().iterator().next().getName().name();
+        var accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), role);
+        var refreshToken = jwtService.generateRefreshToken(user.getId());
+        user.setRefreshToken(refreshToken);
+        userRepository.save(user);
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .user(toUserResponse(user))
+                .build();
+    }
+
+    public AuthResponse refreshToken(RefreshTokenRequest req) {
+        if (!jwtService.isTokenValid(req.getRefreshToken())) {
+            throw new UnauthorizedException("Invalid or expired refresh token");
+        }
+        var userId = jwtService.getUserIdFromToken(req.getRefreshToken());
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("User not found"));
+        if (!req.getRefreshToken().equals(user.getRefreshToken())) {
+            throw new UnauthorizedException("Refresh token mismatch");
+        }
+        var role = user.getRoles().isEmpty() ? "USER" : user.getRoles().iterator().next().getName().name();
+        var accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), role);
+        var refreshToken = jwtService.generateRefreshToken(user.getId());
+        user.setRefreshToken(refreshToken);
+        userRepository.save(user);
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .user(toUserResponse(user))
+                .build();
+    }
+
+    public UserResponse me(UUID userId) {
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return toUserResponse(user);
+    }
+
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest req) {
+        var user = userRepository.findByEmail(req.getEmail()).orElse(null);
+        if (user != null) {
+            var token = Base64.getEncoder().encodeToString(UUID.randomUUID().toString().getBytes());
+            user.setResetToken(token);
+            user.setResetTokenExp(Instant.now().plusSeconds(3600)); // 1 hour
+            userRepository.save(user);
+            // TODO: Send email with reset link containing token
+        }
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest req) {
+        var user = userRepository.findByResetToken(req.getToken())
+                .orElseThrow(() -> new BadRequestException("Invalid or expired reset token"));
+        if (user.getResetTokenExp() == null || user.getResetTokenExp().isBefore(Instant.now())) {
+            throw new BadRequestException("Reset token has expired");
+        }
+        user.setPasswordHash(passwordEncoder.encode(req.getNewPassword()));
+        user.setResetToken(null);
+        user.setResetTokenExp(null);
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void logout(UUID userId) {
+        userRepository.findById(userId).ifPresent(u -> {
+            u.setRefreshToken(null);
+            userRepository.save(u);
+        });
+    }
+
+    private UserResponse toUserResponse(User user) {
+        return UserResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .phone(user.getPhone())
+                .avatar(user.getAvatar())
+                .dateOfBirth(user.getDateOfBirth())
+                .gender(user.getGender())
+                .city(user.getCity())
+                .isActive(user.getIsActive())
+                .emailVerified(user.getEmailVerified())
+                .roles(user.getRoles().stream().map(r -> r.getName().name()).collect(Collectors.toSet()))
+                .createdAt(user.getCreatedAt())
+                .build();
+    }
+}
