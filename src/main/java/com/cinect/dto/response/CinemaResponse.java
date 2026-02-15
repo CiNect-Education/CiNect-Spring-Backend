@@ -21,5 +21,6 @@ public class CinemaResponse {
     private Double latitude;
     private Double longitude;
     private Boolean isActive;
+    private Integer roomCount;
     private Instant createdAt;
 }
