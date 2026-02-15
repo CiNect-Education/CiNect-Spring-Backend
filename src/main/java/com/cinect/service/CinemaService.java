@@ -96,6 +96,7 @@ public class CinemaService {
                 .latitude(c.getLatitude())
                 .longitude(c.getLongitude())
                 .isActive(c.getIsActive())
+                .roomCount(c.getRooms() != null ? c.getRooms().size() : 0)
                 .createdAt(c.getCreatedAt())
                 .build();
     }
