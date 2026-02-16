@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -86,13 +87,16 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest req) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
         var user = userRepository.findByEmail(req.getEmail())
                 .orElseThrow(() -> new BadRequestException("Invalid credentials"));
         if (!user.getIsActive()) {
             throw new BadRequestException("Account is deactivated");
         }
+        if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
+            throw new BadRequestException("This account uses social login. Please sign in with your social provider.");
+        }
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
         var role = user.getRoles().isEmpty() ? "USER" : user.getRoles().iterator().next().getName().name();
         var accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), role);
         var refreshToken = jwtService.generateRefreshToken(user.getId());
@@ -166,6 +170,86 @@ public class AuthService {
             u.setRefreshToken(null);
             userRepository.save(u);
         });
+    }
+
+    @Transactional
+    public AuthResponse findOrCreateOAuthUser(Map<String, Object> profile) {
+        String provider = (String) profile.get("provider");
+        String providerId = (String) profile.get("providerId");
+        String email = (String) profile.get("email");
+        String fullName = (String) profile.get("fullName");
+        String avatar = (String) profile.get("avatar");
+
+        // 1. Check by provider + providerId
+        var userOpt = userRepository.findByProviderAndProviderId(provider, providerId);
+        User user;
+
+        if (userOpt.isPresent()) {
+            user = userOpt.get();
+        } else if (email != null && !email.isBlank()) {
+            // 2. Check by email — link provider
+            var emailUserOpt = userRepository.findByEmail(email.toLowerCase());
+            if (emailUserOpt.isPresent()) {
+                user = emailUserOpt.get();
+                user.setProvider(provider);
+                user.setProviderId(providerId);
+                if (user.getAvatar() == null || user.getAvatar().isBlank()) {
+                    user.setAvatar(avatar);
+                }
+                user = userRepository.save(user);
+            } else {
+                // 3. Create new user
+                user = createOAuthUser(provider, providerId, email, fullName, avatar);
+            }
+        } else {
+            // 3. Create with synthetic email
+            String syntheticEmail = provider.toLowerCase() + "_" + providerId + "@oauth.local";
+            user = createOAuthUser(provider, providerId, syntheticEmail, fullName, avatar);
+        }
+
+        var role = user.getRoles().isEmpty() ? "USER" : user.getRoles().iterator().next().getName().name();
+        var accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), role);
+        var refreshToken = jwtService.generateRefreshToken(user.getId());
+        user.setRefreshToken(refreshToken);
+        userRepository.save(user);
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .user(toUserResponse(user))
+                .build();
+    }
+
+    private User createOAuthUser(String provider, String providerId, String email, String fullName, String avatar) {
+        var userRole = roleRepository.findByName(com.cinect.entity.enums.UserRole.USER)
+                .orElse(null);
+        var bronzeTier = membershipTierRepository.findByName("Bronze")
+                .orElse(null);
+
+        var user = User.builder()
+                .email(email.toLowerCase())
+                .fullName(fullName != null && !fullName.isBlank() ? fullName : "User")
+                .avatar(avatar)
+                .provider(provider)
+                .providerId(providerId)
+                .isActive(true)
+                .emailVerified(true)
+                .roles(userRole != null ? new HashSet<>(Set.of(userRole)) : new HashSet<>())
+                .build();
+        user = userRepository.save(user);
+
+        if (bronzeTier != null) {
+            var membership = Membership.builder()
+                    .user(user)
+                    .tier(bronzeTier)
+                    .currentPoints(0)
+                    .totalPoints(0)
+                    .memberSince(Instant.now())
+                    .build();
+            membershipRepository.save(membership);
+        }
+
+        return user;
     }
 
     private UserResponse toUserResponse(User user) {
