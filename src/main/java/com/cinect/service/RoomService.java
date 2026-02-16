@@ -1,6 +1,9 @@
 package com.cinect.service;
 
+import com.cinect.dto.request.BulkUpdateSeatsRequest;
 import com.cinect.dto.request.CreateRoomRequest;
+import com.cinect.dto.request.ImportSeatsRequest;
+import com.cinect.dto.request.UpdateRoomRequest;
 import com.cinect.dto.response.RoomResponse;
 import com.cinect.dto.response.SeatResponse;
 import com.cinect.entity.Cinema;
@@ -31,9 +34,117 @@ public class RoomService {
     private final SeatRepository seatRepository;
     private final CinemaRepository cinemaRepository;
 
+    public List<RoomResponse> findAllRooms() {
+        var rooms = roomRepository.findAll();
+        return rooms.stream().map(r -> toResponseWithSeats(r.getId())).collect(Collectors.toList());
+    }
+
     public List<RoomResponse> findByCinema(UUID cinemaId) {
         var rooms = roomRepository.findByCinemaIdAndIsActiveTrue(cinemaId);
         return rooms.stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    public RoomResponse findById(UUID roomId) {
+        var room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new ResourceNotFoundException("Room not found"));
+        return toResponseWithSeats(room.getId());
+    }
+
+    @Transactional
+    public RoomResponse update(UUID roomId, UpdateRoomRequest req) {
+        var room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new ResourceNotFoundException("Room not found"));
+        if (req.getName() != null) room.setName(req.getName());
+        if (req.getFormat() != null) room.setFormat(req.getFormat());
+        if (req.getRows() != null) room.setRows(req.getRows());
+        if (req.getColumns() != null) room.setColumns(req.getColumns());
+        if (req.getIsActive() != null) room.setIsActive(req.getIsActive());
+        room = roomRepository.save(room);
+        return toResponseWithSeats(room.getId());
+    }
+
+    @Transactional
+    public void delete(UUID roomId) {
+        var room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new ResourceNotFoundException("Room not found"));
+        room.setIsActive(false);
+        roomRepository.save(room);
+    }
+
+    public List<SeatResponse> getSeats(UUID roomId) {
+        roomRepository.findById(roomId).orElseThrow(() -> new ResourceNotFoundException("Room not found"));
+        return seatRepository.findByRoomId(roomId).stream().map(this::toSeatResponse).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public List<SeatResponse> bulkUpdateSeats(UUID roomId, BulkUpdateSeatsRequest req) {
+        var room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new ResourceNotFoundException("Room not found"));
+        if (req.getSeats() == null || req.getSeats().isEmpty()) return getSeats(roomId);
+        for (var item : req.getSeats()) {
+            if (item.getId() == null) continue;
+            var seat = seatRepository.findById(item.getId()).orElse(null);
+            if (seat == null || !seat.getRoom().getId().equals(roomId)) continue;
+            if (item.getRowLabel() != null) seat.setRowLabel(item.getRowLabel());
+            if (item.getNumber() != null) seat.setNumber(item.getNumber());
+            if (item.getType() != null) seat.setType(item.getType());
+            if (item.getStatus() != null) seat.setStatus(item.getStatus());
+            if (item.getIsAisle() != null) seat.setIsAisle(item.getIsAisle());
+            if (item.getPrice() != null) seat.setPrice(item.getPrice());
+            seatRepository.save(seat);
+        }
+        return getSeats(roomId);
+    }
+
+    @Transactional
+    public List<SeatResponse> importSeats(UUID roomId, ImportSeatsRequest req) {
+        var room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new ResourceNotFoundException("Room not found"));
+        seatRepository.deleteAll(seatRepository.findByRoomId(roomId));
+        if (req.getSeats() == null || req.getSeats().isEmpty()) {
+            room.setTotalSeats(0);
+            roomRepository.save(room);
+            return List.of();
+        }
+        List<Seat> seats = new ArrayList<>();
+        for (var item : req.getSeats()) {
+            String row = item.getRow() != null ? item.getRow() : "A";
+            int num = item.getNumber() != null ? item.getNumber() : 1;
+            SeatType type = SeatType.STANDARD;
+            if (item.getType() != null) {
+                try { type = SeatType.valueOf(item.getType()); } catch (Exception ignored) { }
+            }
+            boolean isAisle = Boolean.TRUE.equals(item.getIsAisle());
+            seats.add(Seat.builder()
+                    .room(room)
+                    .rowLabel(row)
+                    .number(num)
+                    .type(type)
+                    .status(SeatStatus.AVAILABLE)
+                    .isAisle(isAisle)
+                    .build());
+        }
+        seatRepository.saveAll(seats);
+        room.setTotalSeats(seats.size());
+        roomRepository.save(room);
+        return getSeats(roomId);
+    }
+
+    private RoomResponse toResponseWithSeats(UUID roomId) {
+        var room = roomRepository.findById(roomId).orElseThrow();
+        var seats = seatRepository.findByRoomId(roomId).stream().map(this::toSeatResponse).collect(Collectors.toList());
+        return RoomResponse.builder()
+                .id(room.getId())
+                .cinemaId(room.getCinema().getId())
+                .name(room.getName())
+                .format(room.getFormat())
+                .totalSeats(room.getTotalSeats())
+                .rows(room.getRows())
+                .columns(room.getColumns())
+                .isActive(room.getIsActive())
+                .seats(seats)
+                .createdAt(room.getCreatedAt())
+                .build();
     }
 
     @Transactional

@@ -201,4 +201,89 @@ public class AnalyticsService {
                 "byTier", segments
         );
     }
+
+    public Map<String, Object> getRevenueForecast(Instant from, Instant to) {
+        var revenueData = getRevenue(from, to);
+        @SuppressWarnings("unchecked")
+        var daily = (List<Map<String, Object>>) revenueData.get("daily");
+        if (daily == null || daily.size() < 2) {
+            return Map.of("forecast", List.<Map<String, Object>>of(), "trend", "insufficient_data");
+        }
+        BigDecimal totalRevenue = (BigDecimal) revenueData.get("totalRevenue");
+        long totalBookings = (Long) revenueData.get("totalBookings");
+        double avgDaily = totalBookings > 0 ? totalRevenue.doubleValue() / daily.size() : 0;
+        List<Map<String, Object>> forecast = new ArrayList<>();
+        for (int i = 1; i <= 7; i++) {
+            forecast.add(Map.<String, Object>of(
+                    "dayOffset", i,
+                    "estimatedRevenue", BigDecimal.valueOf(avgDaily).setScale(2, RoundingMode.HALF_UP),
+                    "estimatedBookings", totalBookings > 0 ? (long) (totalBookings * 1.0 / daily.size()) : 0L
+            ));
+        }
+        return Map.of(
+                "forecast", forecast,
+                "averageDailyRevenue", totalRevenue.divide(BigDecimal.valueOf(daily.size()), 2, RoundingMode.HALF_UP),
+                "periodDays", daily.size()
+        );
+    }
+
+    public Map<String, Object> getSalesReport(Instant from, Instant to) {
+        var revenue = getRevenue(from, to);
+        return Map.of(
+                "from", from.toString(),
+                "to", to.toString(),
+                "totalRevenue", revenue.get("totalRevenue"),
+                "totalBookings", revenue.get("totalBookings"),
+                "averageOrderValue", revenue.get("averageOrderValue"),
+                "daily", revenue.get("daily")
+        );
+    }
+
+    public List<Map<String, Object>> getMoviePerformanceReport(Instant from, Instant to) {
+        var allBookings = bookingRepository.findAll().stream()
+                .filter(b -> b.getStatus() == BookingStatus.CONFIRMED)
+                .filter(b -> !b.getCreatedAt().isBefore(from) && b.getCreatedAt().isBefore(to))
+                .collect(Collectors.toList());
+        Map<UUID, List<Booking>> byMovie = allBookings.stream()
+                .collect(Collectors.groupingBy(b -> b.getShowtime().getMovie().getId()));
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (var entry : byMovie.entrySet()) {
+            var movie = entry.getValue().get(0).getShowtime().getMovie();
+            BigDecimal rev = entry.getValue().stream().map(Booking::getFinalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            int tickets = entry.getValue().stream().mapToInt(b -> b.getItems().size()).sum();
+            result.add(Map.of(
+                    "movieId", movie.getId(),
+                    "title", movie.getTitle(),
+                    "bookingCount", entry.getValue().size(),
+                    "ticketCount", tickets,
+                    "revenue", rev
+            ));
+        }
+        result.sort((a, b) -> ((BigDecimal) b.get("revenue")).compareTo((BigDecimal) a.get("revenue")));
+        return result;
+    }
+
+    public List<Map<String, Object>> getCinemaPerformanceReport(Instant from, Instant to) {
+        var allBookings = bookingRepository.findAll().stream()
+                .filter(b -> b.getStatus() == BookingStatus.CONFIRMED)
+                .filter(b -> !b.getCreatedAt().isBefore(from) && b.getCreatedAt().isBefore(to))
+                .collect(Collectors.toList());
+        Map<UUID, List<Booking>> byCinema = allBookings.stream()
+                .collect(Collectors.groupingBy(b -> b.getShowtime().getCinema().getId()));
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (var entry : byCinema.entrySet()) {
+            var cinema = entry.getValue().get(0).getShowtime().getCinema();
+            BigDecimal rev = entry.getValue().stream().map(Booking::getFinalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            int tickets = entry.getValue().stream().mapToInt(b -> b.getItems().size()).sum();
+            result.add(Map.of(
+                    "cinemaId", cinema.getId(),
+                    "name", cinema.getName(),
+                    "bookingCount", entry.getValue().size(),
+                    "ticketCount", tickets,
+                    "revenue", rev
+            ));
+        }
+        result.sort((a, b) -> ((BigDecimal) b.get("revenue")).compareTo((BigDecimal) a.get("revenue")));
+        return result;
+    }
 }

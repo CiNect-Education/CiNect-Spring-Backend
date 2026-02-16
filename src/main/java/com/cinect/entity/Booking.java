@@ -3,6 +3,8 @@ package com.cinect.entity;
 import com.cinect.entity.enums.BookingStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -39,7 +41,7 @@ public class Booking extends BaseEntity {
     @Builder.Default
     private BigDecimal finalAmount = BigDecimal.ZERO;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "booking_status")
     @Builder.Default
     private BookingStatus status = BookingStatus.PENDING;

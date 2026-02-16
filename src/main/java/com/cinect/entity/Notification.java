@@ -4,6 +4,8 @@ import com.cinect.entity.enums.NotificationType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -28,7 +30,7 @@ public class Notification {
     @Column(nullable = false, columnDefinition = "text")
     private String message;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "notification_type")
     @Builder.Default
     private NotificationType type = NotificationType.SYSTEM;

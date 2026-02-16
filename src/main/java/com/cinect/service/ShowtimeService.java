@@ -38,6 +38,17 @@ public class ShowtimeService {
         return list.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
+    public List<ShowtimeResponse> search(UUID movieId, UUID cinemaId, String date, String format) {
+        Instant startFrom = null;
+        Instant startTo = null;
+        if (date != null && !date.isEmpty()) {
+            var localDate = java.time.LocalDate.parse(date);
+            startFrom = localDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
+            startTo = localDate.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
+        }
+        return findFiltered(movieId, cinemaId, startFrom, startTo);
+    }
+
     public ShowtimeResponse findById(UUID id) {
         var st = showtimeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Showtime not found"));
@@ -110,6 +121,14 @@ public class ShowtimeService {
         }
         st = showtimeRepository.save(st);
         return toResponse(st);
+    }
+
+    @Transactional
+    public void delete(UUID id) {
+        var st = showtimeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Showtime not found"));
+        st.setIsActive(false);
+        showtimeRepository.save(st);
     }
 
     public SeatMapResponse getSeatMap(UUID showtimeId) {

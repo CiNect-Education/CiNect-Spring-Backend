@@ -33,7 +33,7 @@ public class NewsArticle {
     @Column(nullable = false, columnDefinition = "text")
     private String content;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "news_category")
     @Builder.Default
     private NewsCategory category = NewsCategory.GENERAL;

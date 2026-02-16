@@ -37,6 +37,22 @@ public class PaymentController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    @GetMapping("/callback")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getCallback(
+            @RequestParam String transactionId) {
+        var payment = paymentService.getPaymentByTransactionId(transactionId);
+        if (payment == null) {
+            return ResponseEntity.ok(ApiResponse.success(Map.of(
+                    "paymentId", "",
+                    "bookingId", ""
+            )));
+        }
+        return ResponseEntity.ok(ApiResponse.success(Map.of(
+                "paymentId", payment.getId().toString(),
+                "bookingId", payment.getBooking().getId().toString()
+        )));
+    }
+
     @GetMapping("/{id}/status")
     public ResponseEntity<ApiResponse<PaymentResponse>> getStatus(
             @PathVariable UUID id,

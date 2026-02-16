@@ -4,6 +4,8 @@ import com.cinect.entity.enums.SupportCategory;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -31,7 +33,7 @@ public class SupportTicket {
     @Column(nullable = false)
     private String subject;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(columnDefinition = "support_category")
     @Builder.Default
     private SupportCategory category = SupportCategory.OTHER;

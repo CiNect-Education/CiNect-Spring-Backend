@@ -20,6 +20,14 @@ public class HoldController {
 
     private final HoldService holdService;
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<HoldResponse>> getHold(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        var data = holdService.getHoldById(id, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<HoldResponse>> createHold(
             @Valid @RequestBody CreateHoldRequest req,

@@ -18,6 +18,8 @@ import java.util.UUID;
 public interface PromotionRepository extends JpaRepository<Promotion, UUID> {
     Optional<Promotion> findByCode(String code);
 
+    Optional<Promotion> findByCodeAndStatus(String code, PromotionStatus status);
+
     @Query("SELECT p FROM Promotion p WHERE p.status = 'ACTIVE' AND p.startDate <= :now AND p.endDate >= :now")
     List<Promotion> findActivePromotions(@Param("now") Instant now);
 

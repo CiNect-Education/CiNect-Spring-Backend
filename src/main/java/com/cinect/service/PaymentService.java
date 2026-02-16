@@ -70,6 +70,10 @@ public class PaymentService {
         return toResponse(payment);
     }
 
+    public Payment getPaymentByTransactionId(String transactionId) {
+        return paymentRepository.findByTransactionId(transactionId).orElse(null);
+    }
+
     private PaymentResponse toResponse(Payment p) {
         return PaymentResponse.builder()
                 .id(p.getId())
