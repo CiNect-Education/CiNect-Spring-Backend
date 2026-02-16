@@ -128,6 +128,20 @@ public class MovieService {
     }
 
     private MovieResponse toResponse(Movie m) {
+        var genres = m.getGenres() != null
+                ? m.getGenres().stream()
+                    .map(g -> MovieResponse.GenreItem.builder()
+                            .id(g.getId()).name(g.getName()).slug(g.getSlug()).build())
+                    .collect(Collectors.toList())
+                : List.<MovieResponse.GenreItem>of();
+
+        var cast = m.getCastMembers() != null
+                ? m.getCastMembers().stream()
+                    .map(name -> MovieResponse.CastMember.builder()
+                            .name(name).role("Actor").avatarUrl(null).build())
+                    .collect(Collectors.toList())
+                : List.<MovieResponse.CastMember>of();
+
         return MovieResponse.builder()
                 .id(m.getId())
                 .title(m.getTitle())
@@ -142,16 +156,17 @@ public class MovieService {
                 .releaseDate(m.getReleaseDate())
                 .endDate(m.getEndDate())
                 .director(m.getDirector())
-                .castMembers(m.getCastMembers())
+                .cast(cast)
                 .language(m.getLanguage())
                 .subtitles(m.getSubtitles())
-                .rating(m.getRating())
+                .rating(m.getRating() != null ? m.getRating().doubleValue() : 0.0)
                 .ratingCount(m.getRatingCount())
                 .ageRating(m.getAgeRating())
                 .formats(m.getFormats())
                 .status(m.getStatus())
-                .genreNames(m.getGenres() != null ? m.getGenres().stream().map(Genre::getName).collect(Collectors.toSet()) : Set.of())
+                .genres(genres)
                 .createdAt(m.getCreatedAt())
+                .updatedAt(m.getUpdatedAt())
                 .build();
     }
 }

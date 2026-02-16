@@ -82,6 +82,10 @@ public class CinemaService {
     }
 
     private CinemaResponse toResponse(Cinema c) {
+        int roomCount = c.getRooms() != null
+                ? (int) c.getRooms().stream().filter(r -> r.getIsActive() != null && r.getIsActive()).count()
+                : 0;
+
         return CinemaResponse.builder()
                 .id(c.getId())
                 .name(c.getName())
@@ -95,8 +99,9 @@ public class CinemaService {
                 .amenities(c.getAmenities())
                 .latitude(c.getLatitude())
                 .longitude(c.getLongitude())
-                .isActive(c.getIsActive())
+                .roomCount(roomCount)
                 .createdAt(c.getCreatedAt())
+                .updatedAt(c.getUpdatedAt())
                 .build();
     }
 }

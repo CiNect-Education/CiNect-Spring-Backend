@@ -15,7 +15,10 @@ import java.util.UUID;
 public interface CinemaRepository extends JpaRepository<Cinema, UUID> {
     Optional<Cinema> findBySlugAndIsActiveTrue(String slug);
 
-    @Query("SELECT c FROM Cinema c WHERE c.isActive = true " +
+    @Query(value = "SELECT DISTINCT c FROM Cinema c LEFT JOIN FETCH c.rooms WHERE c.isActive = true " +
+           "AND (:city IS NULL OR c.city = :city) " +
+           "AND (:search IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')))",
+           countQuery = "SELECT COUNT(c) FROM Cinema c WHERE c.isActive = true " +
            "AND (:city IS NULL OR c.city = :city) " +
            "AND (:search IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Cinema> findAllFiltered(@Param("city") String city,

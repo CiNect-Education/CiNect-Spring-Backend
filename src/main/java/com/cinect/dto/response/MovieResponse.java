@@ -4,11 +4,9 @@ import com.cinect.entity.enums.AgeRating;
 import com.cinect.entity.enums.MovieStatus;
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -26,14 +24,29 @@ public class MovieResponse {
     private LocalDate releaseDate;
     private LocalDate endDate;
     private String director;
-    private List<String> castMembers;
+    private List<CastMember> cast;
     private String language;
     private String subtitles;
-    private BigDecimal rating;
+    private Double rating;
     private Integer ratingCount;
     private AgeRating ageRating;
     private List<String> formats;
     private MovieStatus status;
-    private Set<String> genreNames;
+    private List<GenreItem> genres;
     private Instant createdAt;
+    private Instant updatedAt;
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    public static class GenreItem {
+        private UUID id;
+        private String name;
+        private String slug;
+    }
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    public static class CastMember {
+        private String name;
+        private String role;
+        private String avatarUrl;
+    }
 }
