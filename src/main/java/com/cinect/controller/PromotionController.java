@@ -24,6 +24,16 @@ public class PromotionController {
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
+    @GetMapping("/active")
+    public ResponseEntity<ApiResponse<List<PromotionResponse>>> getActiveWithLimit(
+            @RequestParam(defaultValue = "8") int limit) {
+        var data = promotionService.getActive();
+        if (data.size() > limit) {
+            data = data.subList(0, limit);
+        }
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
     @GetMapping("/trending")
     public ResponseEntity<ApiResponse<List<PromotionResponse>>> getTrending() {
         var data = promotionService.getTrending();

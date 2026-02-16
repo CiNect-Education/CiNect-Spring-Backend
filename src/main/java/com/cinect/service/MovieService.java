@@ -31,14 +31,22 @@ public class MovieService {
     private final MovieRepository movieRepository;
     private final GenreRepository genreRepository;
 
+    @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<MovieResponse> findAll(MovieStatus status, String search, UUID genreId,
                                                                        int page, int limit) {
         Pageable pageable = PageRequest.of(page, limit, Sort.by("releaseDate").descending());
         Page<Movie> pageResult;
+        String trimmedSearch = (search != null && !search.isBlank()) ? search.trim() : null;
         if (genreId != null) {
             pageResult = movieRepository.findByGenre(genreId, pageable);
+        } else if (status != null && trimmedSearch != null) {
+            pageResult = movieRepository.findAllByStatusAndSearch(status, trimmedSearch, pageable);
+        } else if (status != null) {
+            pageResult = movieRepository.findAllByStatus(status, pageable);
+        } else if (trimmedSearch != null) {
+            pageResult = movieRepository.findAllBySearch(trimmedSearch, pageable);
         } else {
-            pageResult = movieRepository.findAllFiltered(status, search == null || search.isBlank() ? null : search.trim(), pageable);
+            pageResult = movieRepository.findAllActive(pageable);
         }
         return pageResult.map(this::toResponse);
     }
