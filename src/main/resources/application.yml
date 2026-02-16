@@ -64,6 +64,22 @@ app:
   points-per-booking: ${POINTS_PER_BOOKING:10}
   maintenance-mode: ${MAINTENANCE_MODE:false}
 
+# OAuth
+oauth:
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
+    redirect-uri: ${GOOGLE_CALLBACK_URL:http://localhost:8081/api/v1/auth/google/callback}
+  facebook:
+    app-id: ${FACEBOOK_APP_ID:}
+    app-secret: ${FACEBOOK_APP_SECRET:}
+    redirect-uri: ${FACEBOOK_CALLBACK_URL:http://localhost:8081/api/v1/auth/facebook/callback}
+  github:
+    client-id: ${GITHUB_CLIENT_ID:}
+    client-secret: ${GITHUB_CLIENT_SECRET:}
+    redirect-uri: ${GITHUB_CALLBACK_URL:http://localhost:8080/api/v1/auth/github/callback}
+
 # Actuator
 management:
   endpoints:
