@@ -19,15 +19,18 @@ public class PromotionController {
     private final PromotionService promotionService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<PromotionResponse>>> getAll() {
+    public ResponseEntity<ApiResponse<List<PromotionResponse>>> getActive() {
         var data = promotionService.getActive();
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     @GetMapping("/active")
-    public ResponseEntity<ApiResponse<List<PromotionResponse>>> getActive(
+    public ResponseEntity<ApiResponse<List<PromotionResponse>>> getActiveWithLimit(
             @RequestParam(defaultValue = "8") int limit) {
-        var data = promotionService.getActive(limit);
+        var data = promotionService.getActive();
+        if (data.size() > limit) {
+            data = data.subList(0, limit);
+        }
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 

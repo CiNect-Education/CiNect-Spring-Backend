@@ -16,12 +16,17 @@ import java.util.UUID;
 public interface MovieRepository extends JpaRepository<Movie, UUID> {
     Optional<Movie> findBySlugAndIsDeletedFalse(String slug);
 
-    @Query("SELECT m FROM Movie m WHERE m.isDeleted = false " +
-           "AND (:status IS NULL OR m.status = :status) " +
-           "AND (:search IS NULL OR LOWER(m.title) LIKE LOWER(CONCAT('%', :search, '%')))")
-    Page<Movie> findAllFiltered(@Param("status") MovieStatus status,
-                                @Param("search") String search,
-                                Pageable pageable);
+    @Query("SELECT m FROM Movie m WHERE m.isDeleted = false")
+    Page<Movie> findAllActive(Pageable pageable);
+
+    @Query("SELECT m FROM Movie m WHERE m.isDeleted = false AND m.status = :status")
+    Page<Movie> findAllByStatus(@Param("status") MovieStatus status, Pageable pageable);
+
+    @Query("SELECT m FROM Movie m WHERE m.isDeleted = false AND LOWER(m.title) LIKE LOWER(CONCAT('%', :search, '%'))")
+    Page<Movie> findAllBySearch(@Param("search") String search, Pageable pageable);
+
+    @Query("SELECT m FROM Movie m WHERE m.isDeleted = false AND m.status = :status AND LOWER(m.title) LIKE LOWER(CONCAT('%', :search, '%'))")
+    Page<Movie> findAllByStatusAndSearch(@Param("status") MovieStatus status, @Param("search") String search, Pageable pageable);
 
     @Query("SELECT m FROM Movie m JOIN m.genres g WHERE g.id = :genreId AND m.isDeleted = false")
     Page<Movie> findByGenre(@Param("genreId") UUID genreId, Pageable pageable);

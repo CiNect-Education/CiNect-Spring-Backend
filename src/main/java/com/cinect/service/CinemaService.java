@@ -23,12 +23,21 @@ public class CinemaService {
 
     private final CinemaRepository cinemaRepository;
 
+    @Transactional(readOnly = true)
     public Page<CinemaResponse> findAll(String city, String search, int page, int limit) {
         Pageable pageable = PageRequest.of(page, limit, Sort.by("name"));
-        var pageResult = cinemaRepository.findAllFiltered(
-                city == null || city.isBlank() ? null : city.trim(),
-                search == null || search.isBlank() ? null : search.trim(),
-                pageable);
+        String trimmedCity = (city != null && !city.isBlank()) ? city.trim() : null;
+        String trimmedSearch = (search != null && !search.isBlank()) ? search.trim() : null;
+        Page<Cinema> pageResult;
+        if (trimmedCity != null && trimmedSearch != null) {
+            pageResult = cinemaRepository.findAllByCityAndSearch(trimmedCity, trimmedSearch, pageable);
+        } else if (trimmedCity != null) {
+            pageResult = cinemaRepository.findAllByCity(trimmedCity, pageable);
+        } else if (trimmedSearch != null) {
+            pageResult = cinemaRepository.findAllBySearch(trimmedSearch, pageable);
+        } else {
+            pageResult = cinemaRepository.findAllActive(pageable);
+        }
         return pageResult.map(this::toResponse);
     }
 
@@ -82,6 +91,10 @@ public class CinemaService {
     }
 
     private CinemaResponse toResponse(Cinema c) {
+        int roomCount = c.getRooms() != null
+                ? (int) c.getRooms().stream().filter(r -> r.getIsActive() != null && r.getIsActive()).count()
+                : 0;
+
         return CinemaResponse.builder()
                 .id(c.getId())
                 .name(c.getName())
@@ -95,9 +108,9 @@ public class CinemaService {
                 .amenities(c.getAmenities())
                 .latitude(c.getLatitude())
                 .longitude(c.getLongitude())
-                .isActive(c.getIsActive())
-                .roomCount(c.getRooms() != null ? c.getRooms().size() : 0)
+                .roomCount(roomCount)
                 .createdAt(c.getCreatedAt())
+                .updatedAt(c.getUpdatedAt())
                 .build();
     }
 }

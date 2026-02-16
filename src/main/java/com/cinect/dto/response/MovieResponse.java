@@ -7,7 +7,6 @@ import lombok.*;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -25,7 +24,7 @@ public class MovieResponse {
     private LocalDate releaseDate;
     private LocalDate endDate;
     private String director;
-    private List<String> cast;
+    private List<CastMember> cast;
     private String language;
     private String subtitles;
     private Double rating;
@@ -33,13 +32,21 @@ public class MovieResponse {
     private AgeRating ageRating;
     private List<String> formats;
     private MovieStatus status;
-    private List<GenreInfo> genres;
+    private List<GenreItem> genres;
     private Instant createdAt;
+    private Instant updatedAt;
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-    public static class GenreInfo {
+    public static class GenreItem {
         private UUID id;
         private String name;
         private String slug;
+    }
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    public static class CastMember {
+        private String name;
+        private String role;
+        private String avatarUrl;
     }
 }

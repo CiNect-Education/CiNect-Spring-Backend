@@ -20,7 +20,7 @@ public class CinemaResponse {
     private List<String> amenities;
     private Double latitude;
     private Double longitude;
-    private Boolean isActive;
     private Integer roomCount;
     private Instant createdAt;
+    private Instant updatedAt;
 }

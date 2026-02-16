@@ -25,6 +25,8 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        type:
+          preferred_uuid_jdbc_type: CHAR
         jdbc:
           time_zone: UTC
 
