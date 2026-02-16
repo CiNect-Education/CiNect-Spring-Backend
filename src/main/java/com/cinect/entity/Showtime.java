@@ -1,5 +1,6 @@
 package com.cinect.entity;
 
+import com.cinect.entity.converter.RoomFormatConverter;
 import com.cinect.entity.enums.RoomFormat;
 import jakarta.persistence.*;
 import lombok.*;
@@ -34,7 +35,7 @@ public class Showtime extends BaseEntity {
     @Column(name = "base_price", nullable = false)
     private BigDecimal basePrice;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = RoomFormatConverter.class)
     @Column(nullable = false, columnDefinition = "room_format")
     @Builder.Default
     private RoomFormat format = RoomFormat._2D;

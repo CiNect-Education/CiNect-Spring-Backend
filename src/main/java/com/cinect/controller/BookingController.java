@@ -14,6 +14,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -70,5 +71,32 @@ public class BookingController {
             @AuthenticationPrincipal UserPrincipal principal) {
         bookingService.cancelBooking(id, principal.getId());
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/{id}/apply-promo")
+    public ResponseEntity<ApiResponse<BookingResponse>> applyPromo(
+            @PathVariable UUID id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        var data = bookingService.applyPromo(id, principal.getId(), body.get("code"));
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    @PostMapping("/{id}/apply-points")
+    public ResponseEntity<ApiResponse<BookingResponse>> applyPoints(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Integer> body,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        var data = bookingService.applyPoints(id, principal.getId(), body.get("points") != null ? body.get("points") : 0);
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    @PostMapping("/{id}/apply-gift-card")
+    public ResponseEntity<ApiResponse<BookingResponse>> applyGiftCard(
+            @PathVariable UUID id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        var data = bookingService.applyGiftCard(id, principal.getId(), body.get("code"));
+        return ResponseEntity.ok(ApiResponse.success(data));
     }
 }

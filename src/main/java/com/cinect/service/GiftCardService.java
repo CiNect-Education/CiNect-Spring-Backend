@@ -40,6 +40,13 @@ public class GiftCardService {
         return toResponse(card);
     }
 
+    public List<GiftCardResponse> findByBuyer(UUID buyerId) {
+        var transactions = giftTransactionRepository.findByBuyerId(buyerId);
+        return transactions.stream()
+                .map(tx -> toResponse(tx.getGiftCard()))
+                .collect(Collectors.toList());
+    }
+
     public GiftCardResponse findByCode(String code) {
         GiftCard card = giftCardRepository.findByCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("Gift card", "code", code));

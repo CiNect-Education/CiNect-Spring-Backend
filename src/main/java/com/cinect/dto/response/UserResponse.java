@@ -4,7 +4,6 @@ import lombok.*;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Set;
 import java.util.UUID;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -14,11 +13,14 @@ public class UserResponse {
     private String fullName;
     private String phone;
     private String avatar;
+    private String role;
+    private String membershipTier;
+    private Integer membershipPoints;
     private LocalDate dateOfBirth;
     private String gender;
     private String city;
     private Boolean isActive;
     private Boolean emailVerified;
-    private Set<String> roles;
     private Instant createdAt;
+    private Instant updatedAt;
 }

@@ -13,7 +13,8 @@ import java.util.UUID;
 
 @Repository
 public interface SeatRepository extends JpaRepository<Seat, UUID> {
-    List<Seat> findByRoomId(UUID roomId);
+    @Query("SELECT s FROM Seat s WHERE s.room.id = :roomId ORDER BY s.rowLabel, s.number")
+    List<Seat> findByRoomId(@Param("roomId") UUID roomId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM Seat s WHERE s.id IN :seatIds")

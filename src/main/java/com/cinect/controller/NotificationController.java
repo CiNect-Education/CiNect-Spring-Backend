@@ -46,8 +46,23 @@ public class NotificationController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    @PatchMapping("/{id}/read")
+    public ResponseEntity<ApiResponse<Void>> markReadPatch(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        notificationService.markRead(id, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
     @PostMapping("/read-all")
     public ResponseEntity<ApiResponse<Void>> markAllRead(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        notificationService.markAllRead(principal.getId());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PatchMapping("/read-all")
+    public ResponseEntity<ApiResponse<Void>> markAllReadPatch(
             @AuthenticationPrincipal UserPrincipal principal) {
         notificationService.markAllRead(principal.getId());
         return ResponseEntity.ok(ApiResponse.success(null));

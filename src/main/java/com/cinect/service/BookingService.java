@@ -7,7 +7,12 @@ import com.cinect.dto.response.BookingSnackResponse;
 import com.cinect.dto.response.ShowtimeResponse;
 import com.cinect.entity.*;
 import com.cinect.entity.enums.BookingStatus;
+import com.cinect.entity.enums.DiscountType;
+import com.cinect.entity.enums.GiftCardStatus;
 import com.cinect.entity.enums.HoldStatus;
+import com.cinect.entity.enums.PointsTxType;
+import com.cinect.entity.enums.PaymentStatus;
+import com.cinect.entity.enums.PromotionStatus;
 import com.cinect.exception.BadRequestException;
 import com.cinect.exception.ResourceNotFoundException;
 import com.cinect.repository.*;
@@ -41,6 +46,11 @@ public class BookingService {
     private final MembershipService membershipService;
     private final SeatWebSocketHandler seatWebSocketHandler;
     private final GiftCardService giftCardService;
+    private final PromotionRepository promotionRepository;
+    private final MembershipRepository membershipRepository;
+    private final PointsHistoryRepository pointsHistoryRepository;
+    private final GiftCardRepository giftCardRepository;
+    private final PaymentRepository paymentRepository;
 
     @Value("${app.payment-timeout-minutes:2}")
     private int paymentTimeoutMinutes;
@@ -229,6 +239,59 @@ public class BookingService {
         }
     }
 
+    @Transactional
+    public BookingResponse adminCancelBooking(UUID bookingId) {
+        var booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            return toResponse(booking);
+        }
+        if (booking.getStatus() != BookingStatus.PENDING && booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new BadRequestException("Cannot cancel this booking");
+        }
+        List<UUID> releasedSeatIds = booking.getItems().stream()
+                .map(bi -> bi.getSeat().getId())
+                .collect(Collectors.toList());
+        booking.setStatus(BookingStatus.CANCELLED);
+        bookingRepository.save(booking);
+        if (!releasedSeatIds.isEmpty()) {
+            seatWebSocketHandler.broadcastSeatEvent(
+                    booking.getShowtime().getId(), SeatWebSocketHandler.SEAT_RELEASED, releasedSeatIds);
+        }
+        return toResponse(booking);
+    }
+
+    @Transactional
+    public BookingResponse adminRefundBooking(UUID bookingId) {
+        var booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            return toResponse(booking);
+        }
+        List<UUID> releasedSeatIds = booking.getItems().stream()
+                .map(bi -> bi.getSeat().getId())
+                .collect(Collectors.toList());
+        booking.setStatus(BookingStatus.CANCELLED);
+        bookingRepository.save(booking);
+        var payments = paymentRepository.findByBooking_Id(bookingId);
+        for (var p : payments) {
+            if (p.getStatus() == PaymentStatus.PAID) {
+                p.setStatus(PaymentStatus.REFUNDED);
+                paymentRepository.save(p);
+            }
+        }
+        if (!releasedSeatIds.isEmpty()) {
+            seatWebSocketHandler.broadcastSeatEvent(
+                    booking.getShowtime().getId(), SeatWebSocketHandler.SEAT_RELEASED, releasedSeatIds);
+        }
+        return toResponse(booking);
+    }
+
+    public List<BookingResponse> getRecentBookings(int limit) {
+        var pageable = PageRequest.of(0, limit, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+        return bookingRepository.findAllByOrderByCreatedAtDesc(pageable).stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
     public Page<BookingResponse> getUserBookings(UUID userId, int page, int limit) {
         Pageable pageable = PageRequest.of(page, limit);
         return bookingRepository.findByUserId(userId, pageable).map(this::toResponse);
@@ -247,6 +310,126 @@ public class BookingService {
         if (!booking.getUser().getId().equals(userId)) {
             throw new BadRequestException("Not authorized");
         }
+        return toResponse(booking);
+    }
+
+    @Transactional
+    public BookingResponse applyPromo(UUID bookingId, UUID userId, String code) {
+        var booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        if (!booking.getUser().getId().equals(userId)) {
+            throw new BadRequestException("Not authorized");
+        }
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new BadRequestException("Booking is not pending");
+        }
+
+        var promotion = promotionRepository.findByCodeAndStatus(code, PromotionStatus.ACTIVE)
+                .orElseThrow(() -> new ResourceNotFoundException("Promotion not found or expired"));
+
+        var now = Instant.now();
+        if (promotion.getStartDate().isAfter(now) || promotion.getEndDate().isBefore(now)) {
+            throw new BadRequestException("Promotion is not active");
+        }
+        if (promotion.getMinPurchase() != null && booking.getTotalAmount().compareTo(promotion.getMinPurchase()) < 0) {
+            throw new BadRequestException("Minimum purchase not met");
+        }
+
+        BigDecimal discount;
+        if (promotion.getDiscountType() == DiscountType.PERCENTAGE) {
+            discount = booking.getTotalAmount().multiply(promotion.getDiscountValue().divide(BigDecimal.valueOf(100), java.math.RoundingMode.HALF_UP));
+        } else {
+            discount = promotion.getDiscountValue();
+        }
+        if (promotion.getMaxDiscount() != null && discount.compareTo(promotion.getMaxDiscount()) > 0) {
+            discount = promotion.getMaxDiscount();
+        }
+
+        var newDiscount = booking.getDiscountAmount().add(discount);
+        booking.setPromotionCode(code);
+        booking.setDiscountAmount(newDiscount);
+        booking.setFinalAmount(booking.getTotalAmount().subtract(newDiscount).max(BigDecimal.ZERO));
+        bookingRepository.save(booking);
+
+        promotion.setUsageCount(promotion.getUsageCount() + 1);
+        promotionRepository.save(promotion);
+
+        return toResponse(booking);
+    }
+
+    @Transactional
+    public BookingResponse applyPoints(UUID bookingId, UUID userId, int points) {
+        var booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        if (!booking.getUser().getId().equals(userId)) {
+            throw new BadRequestException("Not authorized");
+        }
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new BadRequestException("Booking is not pending");
+        }
+
+        var membership = membershipRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Membership not found"));
+        if (membership.getCurrentPoints() < points) {
+            throw new BadRequestException("Insufficient points");
+        }
+
+        BigDecimal pointsValue = BigDecimal.valueOf(points * 0.01);
+        var newDiscount = booking.getDiscountAmount().add(pointsValue);
+        booking.setPointsUsed((booking.getPointsUsed() != null ? booking.getPointsUsed() : 0) + points);
+        booking.setDiscountAmount(newDiscount);
+        booking.setFinalAmount(booking.getTotalAmount().subtract(newDiscount).max(BigDecimal.ZERO));
+        bookingRepository.save(booking);
+
+        membership.setCurrentPoints(membership.getCurrentPoints() - points);
+        membershipRepository.save(membership);
+
+        var ph = PointsHistory.builder()
+                .user(booking.getUser())
+                .type(PointsTxType.REDEEM)
+                .points(-points)
+                .balance(membership.getCurrentPoints())
+                .description("Redeemed " + points + " points for booking")
+                .booking(booking)
+                .build();
+        pointsHistoryRepository.save(ph);
+
+        return toResponse(booking);
+    }
+
+    @Transactional
+    public BookingResponse applyGiftCard(UUID bookingId, UUID userId, String code) {
+        var booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        if (!booking.getUser().getId().equals(userId)) {
+            throw new BadRequestException("Not authorized");
+        }
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new BadRequestException("Booking is not pending");
+        }
+
+        var giftCard = giftCardRepository.findByCode(code)
+                .orElseThrow(() -> new ResourceNotFoundException("Gift card not found"));
+        if (giftCard.getStatus() != GiftCardStatus.AVAILABLE) {
+            throw new BadRequestException("Gift card already used");
+        }
+        if (giftCard.getExpiresAt() != null && giftCard.getExpiresAt().isBefore(Instant.now())) {
+            throw new BadRequestException("Gift card expired");
+        }
+
+        BigDecimal giftValue = giftCard.getValue();
+        BigDecimal remaining = booking.getFinalAmount();
+        BigDecimal appliedValue = giftValue.min(remaining);
+
+        var newDiscount = booking.getDiscountAmount().add(appliedValue);
+        booking.setGiftCardCode(code);
+        booking.setDiscountAmount(newDiscount);
+        booking.setFinalAmount(booking.getTotalAmount().subtract(newDiscount).max(BigDecimal.ZERO));
+        bookingRepository.save(booking);
+
+        giftCard.setStatus(GiftCardStatus.REDEEMED);
+        giftCardRepository.save(giftCard);
+
         return toResponse(booking);
     }
 

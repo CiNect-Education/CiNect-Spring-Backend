@@ -25,4 +25,13 @@ public class SupportController {
         supportService.createTicket(req, userId);
         return ResponseEntity.ok(ApiResponse.success(null, "Ticket submitted successfully"));
     }
+
+    @PostMapping("/ticket")
+    public ResponseEntity<ApiResponse<Void>> submitTicket(
+            @Valid @RequestBody ContactFormRequest req,
+            @AuthenticationPrincipal(errorOnInvalidType = false) UserPrincipal principal) {
+        var userId = principal != null ? principal.getId() : null;
+        supportService.createTicket(req, userId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Ticket submitted successfully"));
+    }
 }

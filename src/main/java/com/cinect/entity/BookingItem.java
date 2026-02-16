@@ -3,6 +3,8 @@ package com.cinect.entity;
 import com.cinect.entity.enums.SeatType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -35,7 +37,7 @@ public class BookingItem {
     @Column(name = "seat_number", nullable = false)
     private Integer seatNumber;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "seat_type", nullable = false, columnDefinition = "seat_type")
     private SeatType seatType;
 

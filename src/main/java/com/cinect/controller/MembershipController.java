@@ -2,6 +2,8 @@ package com.cinect.controller;
 
 import com.cinect.dto.response.ApiResponse;
 import com.cinect.dto.response.MembershipResponse;
+import com.cinect.dto.response.MembershipTierResponse;
+import com.cinect.dto.response.ShowtimeResponse;
 import com.cinect.entity.PointsHistory;
 import com.cinect.dto.response.PageMeta;
 import com.cinect.security.UserPrincipal;
@@ -23,7 +25,7 @@ public class MembershipController {
     private final MembershipService membershipService;
 
     @GetMapping("/tiers")
-    public ResponseEntity<ApiResponse<List<MembershipResponse>>> getTiers() {
+    public ResponseEntity<ApiResponse<List<MembershipTierResponse>>> getTiers() {
         var data = membershipService.getTiers();
         return ResponseEntity.ok(ApiResponse.success(data));
     }
@@ -50,5 +52,12 @@ public class MembershipController {
                 .hasPrev(data.hasPrevious())
                 .build();
         return ResponseEntity.ok(ApiResponse.success(data.getContent(), meta));
+    }
+
+    @GetMapping("/events")
+    public ResponseEntity<ApiResponse<List<ShowtimeResponse>>> getEvents(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        var data = membershipService.getMemberEvents();
+        return ResponseEntity.ok(ApiResponse.success(data));
     }
 }

@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,19 +32,22 @@ public class UserService {
     }
 
     private UserResponse toResponse(User user) {
+        String role = user.getRoles().isEmpty() ? "USER"
+                : user.getRoles().iterator().next().getName().name();
         return UserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .phone(user.getPhone())
                 .avatar(user.getAvatar())
+                .role(role)
                 .dateOfBirth(user.getDateOfBirth())
                 .gender(user.getGender())
                 .city(user.getCity())
                 .isActive(user.getIsActive())
                 .emailVerified(user.getEmailVerified())
-                .roles(user.getRoles().stream().map(r -> r.getName().name()).collect(Collectors.toSet()))
                 .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
                 .build();
     }
 }

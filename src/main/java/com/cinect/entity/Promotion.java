@@ -4,6 +4,8 @@ import com.cinect.entity.enums.DiscountType;
 import com.cinect.entity.enums.PromotionStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -22,7 +24,7 @@ public class Promotion extends BaseEntity {
     @Column(unique = true)
     private String code;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "discount_type", nullable = false, columnDefinition = "discount_type")
     private DiscountType discountType;
 
@@ -53,7 +55,7 @@ public class Promotion extends BaseEntity {
 
     private String conditions;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "promotion_status")
     @Builder.Default
     private PromotionStatus status = PromotionStatus.ACTIVE;

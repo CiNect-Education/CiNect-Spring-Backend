@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/promotions")
@@ -37,6 +38,13 @@ public class PromotionController {
     @GetMapping("/trending")
     public ResponseEntity<ApiResponse<List<PromotionResponse>>> getTrending() {
         var data = promotionService.getTrending();
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    @GetMapping("/eligible")
+    public ResponseEntity<ApiResponse<List<PromotionResponse>>> findEligible(
+            @RequestParam UUID bookingId) {
+        var data = promotionService.findEligible(bookingId);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
