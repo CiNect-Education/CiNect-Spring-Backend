@@ -73,7 +73,7 @@ public class Movie extends BaseEntity {
     @Builder.Default
     private Integer ratingCount = 0;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "age_rating", nullable = false, columnDefinition = "age_rating")
     @Builder.Default
     private AgeRating ageRating = AgeRating.P;
@@ -82,7 +82,7 @@ public class Movie extends BaseEntity {
     @Column(columnDefinition = "jsonb")
     private List<String> formats;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "movie_status")
     @Builder.Default
     private MovieStatus status = MovieStatus.COMING_SOON;

@@ -16,7 +16,7 @@ import java.util.Set;
 @NoArgsConstructor @AllArgsConstructor @Builder
 public class Role extends BaseEntity {
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, unique = true, columnDefinition = "user_role")
     private UserRole name;
 

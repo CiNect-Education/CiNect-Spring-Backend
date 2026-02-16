@@ -123,6 +123,15 @@ public class HoldService {
         return hold != null ? toResponse(hold) : null;
     }
 
+    public HoldResponse getHoldById(UUID holdId, UUID userId) {
+        var hold = holdRepository.findById(holdId)
+                .orElseThrow(() -> new ResourceNotFoundException("Hold not found"));
+        if (!hold.getUser().getId().equals(userId)) {
+            throw new BadRequestException("Not authorized to view this hold");
+        }
+        return toResponse(hold);
+    }
+
     private HoldResponse toResponse(Hold h) {
         return HoldResponse.builder()
                 .id(h.getId())

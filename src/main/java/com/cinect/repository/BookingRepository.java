@@ -33,4 +33,6 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     @Query("SELECT COALESCE(SUM(b.finalAmount), 0) FROM Booking b WHERE b.status = 'CONFIRMED' " +
            "AND b.createdAt >= :from AND b.createdAt < :to")
     java.math.BigDecimal sumRevenueBetween(@Param("from") Instant from, @Param("to") Instant to);
+
+    List<Booking> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }

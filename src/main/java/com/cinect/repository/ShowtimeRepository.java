@@ -42,4 +42,6 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
                                    @Param("endTime") Instant endTime);
 
     Page<Showtime> findByIsActiveTrue(Pageable pageable);
+
+    List<Showtime> findByMemberExclusiveAndStartTimeAfter(Boolean memberExclusive, Instant startTime);
 }

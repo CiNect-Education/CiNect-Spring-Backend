@@ -141,7 +141,7 @@ public class AuthController {
     // ========================
 
     private void redirectWithTokens(HttpServletResponse response, AuthResponse result) throws IOException {
-        String redirectUrl = frontendUrl + "/auth/callback" +
+        String redirectUrl = frontendUrl + "/callback" +
                 "?token=" + URLEncoder.encode(result.getAccessToken(), StandardCharsets.UTF_8) +
                 "&refreshToken=" + URLEncoder.encode(result.getRefreshToken(), StandardCharsets.UTF_8);
         response.sendRedirect(redirectUrl);

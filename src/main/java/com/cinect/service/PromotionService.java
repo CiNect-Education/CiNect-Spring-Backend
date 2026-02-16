@@ -1,10 +1,14 @@
 package com.cinect.service;
 
 import com.cinect.dto.request.CreatePromotionRequest;
+import com.cinect.dto.request.UpdatePromotionRequest;
 import com.cinect.dto.response.PromotionResponse;
 import com.cinect.entity.Promotion;
+import com.cinect.entity.enums.PromotionStatus;
+import com.cinect.exception.ResourceNotFoundException;
 import com.cinect.exception.BadRequestException;
 import com.cinect.exception.ResourceNotFoundException;
+import com.cinect.repository.BookingRepository;
 import com.cinect.repository.PromotionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -24,6 +28,7 @@ import java.util.stream.Collectors;
 public class PromotionService {
 
     private final PromotionRepository promotionRepository;
+    private final BookingRepository bookingRepository;
 
     public List<PromotionResponse> getActive() {
         var now = Instant.now();
@@ -42,6 +47,19 @@ public class PromotionService {
         var p = promotionRepository.findByCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("Promotion not found"));
         return toResponse(p);
+    }
+
+    public List<PromotionResponse> findEligible(UUID bookingId) {
+        var booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        var now = Instant.now();
+        var promotions = promotionRepository.findActivePromotions(now);
+
+        return promotions.stream()
+                .filter(p -> p.getMinPurchase() == null || booking.getTotalAmount().compareTo(p.getMinPurchase()) >= 0)
+                .filter(p -> p.getUsageLimit() == null || p.getUsageCount() < p.getUsageLimit())
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
     public BigDecimal validateAndApply(String code, BigDecimal subtotal, UUID userId) {
@@ -87,6 +105,36 @@ public class PromotionService {
                 .build();
         p = promotionRepository.save(p);
         return toResponse(p);
+    }
+
+    @Transactional
+    public PromotionResponse update(UUID id, UpdatePromotionRequest req) {
+        var p = promotionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Promotion not found"));
+        if (req.getTitle() != null) p.setTitle(req.getTitle());
+        if (req.getDescription() != null) p.setDescription(req.getDescription());
+        if (req.getCode() != null) p.setCode(req.getCode());
+        if (req.getDiscountType() != null) p.setDiscountType(req.getDiscountType());
+        if (req.getDiscountValue() != null) p.setDiscountValue(req.getDiscountValue());
+        if (req.getMinPurchase() != null) p.setMinPurchase(req.getMinPurchase());
+        if (req.getMaxDiscount() != null) p.setMaxDiscount(req.getMaxDiscount());
+        if (req.getUsageLimit() != null) p.setUsageLimit(req.getUsageLimit());
+        if (req.getStartDate() != null) p.setStartDate(req.getStartDate());
+        if (req.getEndDate() != null) p.setEndDate(req.getEndDate());
+        if (req.getImageUrl() != null) p.setImageUrl(req.getImageUrl());
+        if (req.getConditions() != null) p.setConditions(req.getConditions());
+        if (req.getStatus() != null) p.setStatus(req.getStatus());
+        if (req.getIsTrending() != null) p.setIsTrending(req.getIsTrending());
+        p = promotionRepository.save(p);
+        return toResponse(p);
+    }
+
+    @Transactional
+    public void delete(UUID id) {
+        var p = promotionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Promotion not found"));
+        p.setStatus(PromotionStatus.INACTIVE);
+        promotionRepository.save(p);
     }
 
     private PromotionResponse toResponse(Promotion p) {

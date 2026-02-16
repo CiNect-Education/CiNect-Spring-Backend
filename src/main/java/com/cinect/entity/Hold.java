@@ -33,7 +33,7 @@ public class Hold {
     @Column(name = "seat_ids", columnDefinition = "jsonb")
     private List<UUID> seatIds;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "hold_status")
     @Builder.Default
     private HoldStatus status = HoldStatus.ACTIVE;

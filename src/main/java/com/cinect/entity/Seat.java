@@ -4,6 +4,8 @@ import com.cinect.entity.enums.SeatStatus;
 import com.cinect.entity.enums.SeatType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -28,12 +30,12 @@ public class Seat {
     @Column(nullable = false)
     private Integer number;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "seat_type")
     @Builder.Default
     private SeatType type = SeatType.STANDARD;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "seat_status")
     @Builder.Default
     private SeatStatus status = SeatStatus.AVAILABLE;

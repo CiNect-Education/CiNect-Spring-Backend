@@ -1,6 +1,8 @@
 package com.cinect.service;
 
 import com.cinect.dto.response.MembershipResponse;
+import com.cinect.dto.response.MembershipTierResponse;
+import com.cinect.dto.response.ShowtimeResponse;
 import com.cinect.entity.Membership;
 import com.cinect.entity.PointsHistory;
 import com.cinect.entity.enums.PointsTxType;
@@ -9,6 +11,7 @@ import com.cinect.repository.BookingRepository;
 import com.cinect.repository.MembershipRepository;
 import com.cinect.repository.MembershipTierRepository;
 import com.cinect.repository.PointsHistoryRepository;
+import com.cinect.repository.ShowtimeRepository;
 import com.cinect.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -17,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -30,6 +34,7 @@ public class MembershipService {
     private final PointsHistoryRepository pointsHistoryRepository;
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
+    private final ShowtimeRepository showtimeRepository;
 
     public MembershipResponse getProfile(UUID userId) {
         var m = membershipRepository.findByUserId(userId)
@@ -38,17 +43,17 @@ public class MembershipService {
         return toResponse(m);
     }
 
-    public List<MembershipResponse> getTiers() {
+    public List<MembershipTierResponse> getTiers() {
         return membershipTierRepository.findAll().stream()
-                .map(t -> MembershipResponse.builder()
+                .map(t -> MembershipTierResponse.builder()
                         .id(t.getId())
-                        .tierId(t.getId())
-                        .tierName(t.getName())
-                        .tierLevel(t.getLevel())
+                        .name(t.getName())
+                        .level(t.getLevel())
                         .pointsRequired(t.getPointsRequired())
                         .benefits(t.getBenefits())
                         .discountPercent(t.getDiscountPercent())
                         .color(t.getColor())
+                        .icon(t.getIcon())
                         .build())
                 .collect(Collectors.toList());
     }
@@ -91,6 +96,29 @@ public class MembershipService {
     public Page<PointsHistory> getPointsHistory(UUID userId, int page, int limit) {
         Pageable pageable = PageRequest.of(page, limit);
         return pointsHistoryRepository.findByUser_IdOrderByCreatedAtDesc(userId, pageable);
+    }
+
+    public List<ShowtimeResponse> getMemberEvents() {
+        var showtimes = showtimeRepository.findByMemberExclusiveAndStartTimeAfter(true, Instant.now());
+        return showtimes.stream().map(s -> ShowtimeResponse.builder()
+                .id(s.getId())
+                .movieId(s.getMovie().getId())
+                .movieTitle(s.getMovie().getTitle())
+                .cinemaId(s.getCinema().getId())
+                .cinemaName(s.getCinema().getName())
+                .roomId(s.getRoom().getId())
+                .roomName(s.getRoom().getName())
+                .startTime(s.getStartTime())
+                .endTime(s.getEndTime())
+                .basePrice(s.getBasePrice())
+                .format(s.getFormat())
+                .language(s.getLanguage())
+                .subtitles(s.getSubtitles())
+                .isActive(s.getIsActive())
+                .memberExclusive(s.getMemberExclusive())
+                .createdAt(s.getCreatedAt())
+                .build()
+        ).collect(Collectors.toList());
     }
 
     private MembershipResponse toResponse(Membership m) {

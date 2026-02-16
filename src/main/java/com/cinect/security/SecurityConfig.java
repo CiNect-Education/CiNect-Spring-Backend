@@ -34,6 +34,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints
                 .requestMatchers("/health").permitAll()
+                .requestMatchers("/status").permitAll()
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/ws/**").permitAll()
@@ -45,7 +46,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/gift-cards/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/snacks/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/membership/tiers").permitAll()
+                .requestMatchers(HttpMethod.GET, "/pricing/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/campaigns/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/banners/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/support/contact").permitAll()
+                .requestMatchers(HttpMethod.POST, "/support/ticket").permitAll()
                 // Admin endpoints
                 .requestMatchers("/admin/**").hasAnyRole("ADMIN", "STAFF")
                 // Everything else requires auth

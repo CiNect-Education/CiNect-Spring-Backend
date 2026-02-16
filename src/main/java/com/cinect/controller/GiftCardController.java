@@ -1,9 +1,11 @@
 package com.cinect.controller;
 
+import com.cinect.dto.request.PurchaseGiftCardRequest;
 import com.cinect.dto.response.ApiResponse;
 import com.cinect.dto.response.GiftCardResponse;
 import com.cinect.security.UserPrincipal;
 import com.cinect.service.GiftCardService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,6 +31,14 @@ public class GiftCardController {
     public ResponseEntity<ApiResponse<GiftCardResponse>> findById(@PathVariable UUID id) {
         var data = giftCardService.findById(id);
         return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    @PostMapping("/purchase")
+    public ResponseEntity<ApiResponse<GiftCardResponse>> purchaseWithBody(
+            @Valid @RequestBody PurchaseGiftCardRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        var data = giftCardService.purchase(req.getGiftCardId(), principal.getId(), req.getRecipientEmail(), req.getMessage());
+        return ResponseEntity.ok(ApiResponse.success(data, "Gift card purchased successfully"));
     }
 
     @PostMapping("/{id}/purchase")

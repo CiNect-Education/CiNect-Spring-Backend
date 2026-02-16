@@ -16,6 +16,8 @@ import com.cinect.repository.RoleRepository;
 import com.cinect.repository.UserRepository;
 import com.cinect.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,7 +34,11 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
+
+    @Value("${oauth.frontend-url:http://localhost:3000}")
+    private String frontendUrl;
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -147,7 +153,7 @@ public class AuthService {
             user.setResetToken(token);
             user.setResetTokenExp(Instant.now().plusSeconds(3600)); // 1 hour
             userRepository.save(user);
-            // TODO: Send email with reset link containing token
+            log.info("Password reset link: {}/reset-password?token={}", frontendUrl, token);
         }
     }
 
@@ -253,19 +259,22 @@ public class AuthService {
     }
 
     private UserResponse toUserResponse(User user) {
+        String role = user.getRoles().isEmpty() ? "USER"
+                : user.getRoles().iterator().next().getName().name();
         return UserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .phone(user.getPhone())
                 .avatar(user.getAvatar())
+                .role(role)
                 .dateOfBirth(user.getDateOfBirth())
                 .gender(user.getGender())
                 .city(user.getCity())
                 .isActive(user.getIsActive())
                 .emailVerified(user.getEmailVerified())
-                .roles(user.getRoles().stream().map(r -> r.getName().name()).collect(Collectors.toSet()))
                 .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
                 .build();
     }
 }

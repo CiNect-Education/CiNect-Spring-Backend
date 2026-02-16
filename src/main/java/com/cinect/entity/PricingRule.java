@@ -1,8 +1,11 @@
 package com.cinect.entity;
 
+import com.cinect.entity.converter.RoomFormatConverter;
 import com.cinect.entity.enums.*;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 
@@ -18,19 +21,19 @@ public class PricingRule extends BaseEntity {
     @JoinColumn(name = "cinema_id")
     private Cinema cinema;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "seat_type", columnDefinition = "seat_type")
     private SeatType seatType;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = RoomFormatConverter.class)
     @Column(columnDefinition = "room_format")
     private RoomFormat format;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "day_type", columnDefinition = "day_type")
     private DayType dayType;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "time_slot", columnDefinition = "time_slot")
     private TimeSlot timeSlot;
 
