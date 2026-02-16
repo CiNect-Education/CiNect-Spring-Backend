@@ -1,6 +1,7 @@
 package com.cinect.entity;
 
 import com.cinect.entity.enums.RoomFormat;
+import com.cinect.entity.converter.RoomFormatConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,7 +21,7 @@ public class Room extends BaseEntity {
     @Column(nullable = false)
     private String name;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = RoomFormatConverter.class)
     @Column(nullable = false, columnDefinition = "room_format")
     @Builder.Default
     private RoomFormat format = RoomFormat._2D;

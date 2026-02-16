@@ -15,12 +15,17 @@ import java.util.UUID;
 public interface CinemaRepository extends JpaRepository<Cinema, UUID> {
     Optional<Cinema> findBySlugAndIsActiveTrue(String slug);
 
-    @Query("SELECT c FROM Cinema c WHERE c.isActive = true " +
-           "AND (:city IS NULL OR c.city = :city) " +
-           "AND (:search IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')))")
-    Page<Cinema> findAllFiltered(@Param("city") String city,
-                                 @Param("search") String search,
-                                 Pageable pageable);
+    @Query("SELECT c FROM Cinema c WHERE c.isActive = true")
+    Page<Cinema> findAllActive(Pageable pageable);
+
+    @Query("SELECT c FROM Cinema c WHERE c.isActive = true AND c.city = :city")
+    Page<Cinema> findAllByCity(@Param("city") String city, Pageable pageable);
+
+    @Query("SELECT c FROM Cinema c WHERE c.isActive = true AND LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%'))")
+    Page<Cinema> findAllBySearch(@Param("search") String search, Pageable pageable);
+
+    @Query("SELECT c FROM Cinema c WHERE c.isActive = true AND c.city = :city AND LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%'))")
+    Page<Cinema> findAllByCityAndSearch(@Param("city") String city, @Param("search") String search, Pageable pageable);
 
     Page<Cinema> findByIsActiveTrue(Pageable pageable);
 }

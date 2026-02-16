@@ -15,6 +15,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
     Optional<User> findByResetToken(String resetToken);
+    Optional<User> findByProviderAndProviderId(String provider, String providerId);
 
     @Query("SELECT u FROM User u WHERE " +
            "(:search IS NULL OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :search, '%')) " +

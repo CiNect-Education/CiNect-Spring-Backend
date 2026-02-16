@@ -31,14 +31,22 @@ public class MovieService {
     private final MovieRepository movieRepository;
     private final GenreRepository genreRepository;
 
+    @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<MovieResponse> findAll(MovieStatus status, String search, UUID genreId,
                                                                        int page, int limit) {
         Pageable pageable = PageRequest.of(page, limit, Sort.by("releaseDate").descending());
         Page<Movie> pageResult;
+        String trimmedSearch = (search != null && !search.isBlank()) ? search.trim() : null;
         if (genreId != null) {
             pageResult = movieRepository.findByGenre(genreId, pageable);
+        } else if (status != null && trimmedSearch != null) {
+            pageResult = movieRepository.findAllByStatusAndSearch(status, trimmedSearch, pageable);
+        } else if (status != null) {
+            pageResult = movieRepository.findAllByStatus(status, pageable);
+        } else if (trimmedSearch != null) {
+            pageResult = movieRepository.findAllBySearch(trimmedSearch, pageable);
         } else {
-            pageResult = movieRepository.findAllFiltered(status, search == null || search.isBlank() ? null : search.trim(), pageable);
+            pageResult = movieRepository.findAllActive(pageable);
         }
         return pageResult.map(this::toResponse);
     }
@@ -128,6 +136,20 @@ public class MovieService {
     }
 
     private MovieResponse toResponse(Movie m) {
+        var genres = m.getGenres() != null
+                ? m.getGenres().stream()
+                    .map(g -> MovieResponse.GenreItem.builder()
+                            .id(g.getId()).name(g.getName()).slug(g.getSlug()).build())
+                    .collect(Collectors.toList())
+                : List.<MovieResponse.GenreItem>of();
+
+        var cast = m.getCastMembers() != null
+                ? m.getCastMembers().stream()
+                    .map(name -> MovieResponse.CastMember.builder()
+                            .name(name).role("Actor").avatarUrl(null).build())
+                    .collect(Collectors.toList())
+                : List.<MovieResponse.CastMember>of();
+
         return MovieResponse.builder()
                 .id(m.getId())
                 .title(m.getTitle())
@@ -142,16 +164,17 @@ public class MovieService {
                 .releaseDate(m.getReleaseDate())
                 .endDate(m.getEndDate())
                 .director(m.getDirector())
-                .castMembers(m.getCastMembers())
+                .cast(cast)
                 .language(m.getLanguage())
                 .subtitles(m.getSubtitles())
-                .rating(m.getRating())
+                .rating(m.getRating() != null ? m.getRating().doubleValue() : 0.0)
                 .ratingCount(m.getRatingCount())
                 .ageRating(m.getAgeRating())
                 .formats(m.getFormats())
                 .status(m.getStatus())
-                .genreNames(m.getGenres() != null ? m.getGenres().stream().map(Genre::getName).collect(Collectors.toSet()) : Set.of())
+                .genres(genres)
                 .createdAt(m.getCreatedAt())
+                .updatedAt(m.getUpdatedAt())
                 .build();
     }
 }
