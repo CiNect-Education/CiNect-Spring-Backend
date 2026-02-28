@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -55,6 +56,15 @@ public class PromotionService {
         var p = promotionRepository.findByCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("Promotion not found"));
         return toResponse(p);
+    }
+
+    /** Returns active promotion by code if found and within date range (for voucher lookup on promotions page). */
+    public Optional<PromotionResponse> findActiveByCode(String code) {
+        if (code == null || code.isBlank()) return Optional.empty();
+        var now = Instant.now();
+        return promotionRepository.findByCodeAndStatus(code, PromotionStatus.ACTIVE)
+                .filter(p -> !p.getStartDate().isAfter(now) && !p.getEndDate().isBefore(now))
+                .map(this::toResponse);
     }
 
     public List<PromotionResponse> findEligible(UUID bookingId) {
