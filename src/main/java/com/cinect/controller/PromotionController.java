@@ -48,6 +48,15 @@ public class PromotionController {
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
+    /** Look up an active promotion by code (e.g. for "enter voucher code" on promotions page). */
+    @GetMapping("/lookup")
+    public ResponseEntity<ApiResponse<PromotionResponse>> lookupByCode(
+            @RequestParam String code) {
+        return promotionService.findActiveByCode(code)
+                .map(ResponseEntity.ok()::body)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/{code}/validate")
     public ResponseEntity<ApiResponse<Map<String, Object>>> validate(
             @PathVariable String code,
