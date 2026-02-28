@@ -173,7 +173,7 @@ public class ShowtimeService {
                 .cinemaName(s.getCinema().getName())
                 .startTime(s.getStartTime())
                 .endTime(s.getEndTime())
-                .basePrice(s.getBasePrice() != null ? s.getBasePrice().doubleValue() : null)
+                .basePrice(s.getBasePrice())
                 .format(s.getFormat())
                 .language(s.getLanguage())
                 .subtitles(s.getSubtitles())

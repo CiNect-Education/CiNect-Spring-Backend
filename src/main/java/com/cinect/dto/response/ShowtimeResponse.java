@@ -3,6 +3,7 @@ package com.cinect.dto.response;
 import com.cinect.entity.enums.RoomFormat;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -18,7 +19,7 @@ public class ShowtimeResponse {
     private String cinemaName;
     private Instant startTime;
     private Instant endTime;
-    private Double basePrice;
+    private BigDecimal basePrice;
     private RoomFormat format;
     private String language;
     private String subtitles;
