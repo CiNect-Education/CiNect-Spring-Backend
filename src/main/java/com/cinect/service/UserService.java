@@ -9,7 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,8 +34,10 @@ public class UserService {
     }
 
     private UserResponse toResponse(User user) {
-        String role = user.getRoles().isEmpty() ? "USER"
-                : user.getRoles().iterator().next().getName().name();
+        List<String> roles = user.getRoles().stream()
+                .map(role -> role.getName().name())
+                .collect(Collectors.toList());
+        String role = roles.isEmpty() ? "USER" : roles.get(0);
         return UserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
@@ -41,6 +45,7 @@ public class UserService {
                 .phone(user.getPhone())
                 .avatar(user.getAvatar())
                 .role(role)
+                .roles(roles)
                 .dateOfBirth(user.getDateOfBirth())
                 .gender(user.getGender())
                 .city(user.getCity())

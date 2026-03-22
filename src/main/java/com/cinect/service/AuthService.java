@@ -3,6 +3,7 @@ package com.cinect.service;
 import com.cinect.dto.request.*;
 import com.cinect.dto.response.AuthResponse;
 import com.cinect.dto.response.UserResponse;
+import com.cinect.dto.response.UserResponse.MembershipDetails;
 import com.cinect.entity.Membership;
 import com.cinect.entity.MembershipTier;
 import com.cinect.entity.User;
@@ -27,10 +28,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -50,7 +54,8 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest req) {
-        if (userRepository.existsByEmail(req.getEmail())) {
+        var normalizedEmail = normalizeEmail(req.getEmail());
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new BadRequestException("Email already registered");
         }
         var userRole = roleRepository.findByName(UserRole.USER)
@@ -61,10 +66,10 @@ public class AuthService {
                         .orElseThrow(() -> new ResourceNotFoundException("No membership tier found")));
 
         var user = User.builder()
-                .email(req.getEmail())
+                .email(normalizedEmail)
                 .passwordHash(passwordEncoder.encode(req.getPassword()))
                 .fullName(req.getFullName())
-                .phone(req.getPhone())
+                .phone(sanitizePhone(req.getPhone()))
                 .isActive(true)
                 .emailVerified(false)
                 .roles(new HashSet<>(Set.of(userRole)))
@@ -78,7 +83,7 @@ public class AuthService {
                 .totalPoints(0)
                 .memberSince(Instant.now())
                 .build();
-        membershipRepository.save(membership);
+        membership = membershipRepository.save(membership);
 
         var accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), "USER");
         var refreshToken = jwtService.generateRefreshToken(user.getId());
@@ -88,12 +93,13 @@ public class AuthService {
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
-                .user(toUserResponse(user))
+                .user(toUserResponse(user, membership))
                 .build();
     }
 
     public AuthResponse login(LoginRequest req) {
-        var user = userRepository.findByEmail(req.getEmail())
+        var normalizedEmail = normalizeEmail(req.getEmail());
+        var user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new BadRequestException("Invalid credentials"));
         if (!user.getIsActive()) {
             throw new BadRequestException("Account is deactivated");
@@ -102,7 +108,7 @@ public class AuthService {
             throw new BadRequestException("This account uses social login. Please sign in with your social provider.");
         }
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
+                new UsernamePasswordAuthenticationToken(normalizedEmail, req.getPassword()));
         var role = user.getRoles().isEmpty() ? "USER" : user.getRoles().iterator().next().getName().name();
         var accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), role);
         var refreshToken = jwtService.generateRefreshToken(user.getId());
@@ -147,7 +153,8 @@ public class AuthService {
 
     @Transactional
     public void forgotPassword(ForgotPasswordRequest req) {
-        var user = userRepository.findByEmail(req.getEmail()).orElse(null);
+        var normalizedEmail = normalizeEmail(req.getEmail());
+        var user = userRepository.findByEmail(normalizedEmail).orElse(null);
         if (user != null) {
             var token = Base64.getEncoder().encodeToString(UUID.randomUUID().toString().getBytes());
             user.setResetToken(token);
@@ -185,6 +192,7 @@ public class AuthService {
         String email = (String) profile.get("email");
         String fullName = (String) profile.get("fullName");
         String avatar = (String) profile.get("avatar");
+        String normalizedEmail = normalizeEmail(email);
 
         // 1. Check by provider + providerId
         var userOpt = userRepository.findByProviderAndProviderId(provider, providerId);
@@ -192,9 +200,9 @@ public class AuthService {
 
         if (userOpt.isPresent()) {
             user = userOpt.get();
-        } else if (email != null && !email.isBlank()) {
-            // 2. Check by email — link provider
-            var emailUserOpt = userRepository.findByEmail(email.toLowerCase());
+        } else if (StringUtils.hasText(normalizedEmail)) {
+            // 2. Check by email - link the provider
+            var emailUserOpt = userRepository.findByEmail(normalizedEmail);
             if (emailUserOpt.isPresent()) {
                 user = emailUserOpt.get();
                 user.setProvider(provider);
@@ -205,7 +213,7 @@ public class AuthService {
                 user = userRepository.save(user);
             } else {
                 // 3. Create new user
-                user = createOAuthUser(provider, providerId, email, fullName, avatar);
+                user = createOAuthUser(provider, providerId, normalizedEmail, fullName, avatar);
             }
         } else {
             // 3. Create with synthetic email
@@ -232,8 +240,9 @@ public class AuthService {
         var bronzeTier = membershipTierRepository.findByName("Bronze")
                 .orElse(null);
 
+        var normalizedEmail = normalizeEmail(email);
         var user = User.builder()
-                .email(email.toLowerCase())
+                .email(normalizedEmail)
                 .fullName(fullName != null && !fullName.isBlank() ? fullName : "User")
                 .avatar(avatar)
                 .provider(provider)
@@ -259,15 +268,25 @@ public class AuthService {
     }
 
     private UserResponse toUserResponse(User user) {
-        String role = user.getRoles().isEmpty() ? "USER"
-                : user.getRoles().iterator().next().getName().name();
+        var membership = membershipRepository.findByUserId(user.getId()).orElse(null);
+        return toUserResponse(user, membership);
+    }
+
+    private UserResponse toUserResponse(User user, Membership membership) {
+        List<String> roles = user.getRoles().stream()
+                .map(role -> role.getName().name())
+                .collect(Collectors.toList());
+        String primaryRole = roles.isEmpty() ? "USER" : roles.get(0);
+
         return UserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .phone(user.getPhone())
                 .avatar(user.getAvatar())
-                .role(role)
+                .role(primaryRole)
+                .roles(roles)
+                .membership(buildMembershipDetails(membership))
                 .dateOfBirth(user.getDateOfBirth())
                 .gender(user.getGender())
                 .city(user.getCity())
@@ -277,4 +296,24 @@ public class AuthService {
                 .updatedAt(user.getUpdatedAt())
                 .build();
     }
+
+    private MembershipDetails buildMembershipDetails(Membership membership) {
+        if (membership == null || membership.getTier() == null) {
+            return null;
+        }
+        return MembershipDetails.builder()
+                .tier(membership.getTier().getName())
+                .level(membership.getTier().getLevel())
+                .points(membership.getCurrentPoints())
+                .build();
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase();
+    }
+
+    private String sanitizePhone(String phone) {
+        return phone == null ? null : phone.trim();
+    }
 }
+

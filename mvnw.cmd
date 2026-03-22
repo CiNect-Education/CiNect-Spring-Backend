@@ -13,4 +13,4 @@ if not exist %WRAPPER_JAR% (
     powershell -Command "Invoke-WebRequest -Uri %WRAPPER_URL% -OutFile %WRAPPER_JAR%"
 )
 
-java -jar %WRAPPER_JAR% %*
+java -Dmaven.multiModuleProjectDirectory=%MAVEN_PROJECTBASEDIR% -classpath %WRAPPER_JAR% org.apache.maven.wrapper.MavenWrapperMain %*
