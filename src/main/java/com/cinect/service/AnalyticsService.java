@@ -1,6 +1,7 @@
 package com.cinect.service;
 
 import com.cinect.entity.Booking;
+import com.cinect.entity.Showtime;
 import com.cinect.entity.enums.BookingStatus;
 import com.cinect.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,119 @@ public class AnalyticsService {
     private final ShowtimeRepository showtimeRepository;
     private final UserRepository userRepository;
     private final MovieRepository movieRepository;
+    private final CinemaRepository cinemaRepository;
     private final MembershipRepository membershipRepository;
+
+    private static int parseRangeDays(String range) {
+        if ("7d".equals(range)) return 7;
+        if ("90d".equals(range)) return 90;
+        return 30;
+    }
+
+    /**
+     * Admin dashboard KPIs aligned with Nest {@code GET /admin/kpis}.
+     */
+    public Map<String, Object> getAdminKpis(String range) {
+        int days = parseRangeDays(range);
+        Instant to = Instant.now();
+        Instant from = to.minusSeconds(days * 24L * 60 * 60);
+
+        BigDecimal totalRevenue = bookingRepository.sumRevenueBetween(from, to);
+        if (totalRevenue == null) totalRevenue = BigDecimal.ZERO;
+
+        long totalBookings = bookingRepository.countCreatedBetween(from, to);
+        long confirmedBookings = bookingRepository.countConfirmedBetween(from, to);
+        long totalUsers = userRepository.count();
+        long totalShowtimes = showtimeRepository.countActiveStartingFrom(from);
+        long totalMovies = movieRepository.countByIsDeletedFalse();
+        long totalCinemas = cinemaRepository.countByIsActiveTrue();
+
+        long bookedSeats = bookingItemRepository.countBookedItemsForActiveShowtimesSince(from);
+        long capacity = bookingItemRepository.sumRoomCapacityForShowtimesSince(from);
+        double occupancyRate = capacity > 0 ? (double) bookedSeats / (double) capacity : 0.0;
+
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("totalRevenue", totalRevenue);
+        map.put("totalBookings", totalBookings);
+        map.put("totalUsers", totalUsers);
+        map.put("confirmedBookings", confirmedBookings);
+        map.put("totalShowtimes", totalShowtimes);
+        map.put("totalMovies", totalMovies);
+        map.put("totalCinemas", totalCinemas);
+        map.put("occupancyRate", occupancyRate);
+        return map;
+    }
+
+    /**
+     * Daily revenue series aligned with Nest {@code GET /admin/revenue}.
+     */
+    public List<Map<String, Object>> getRevenueSeries(String range) {
+        int days = parseRangeDays(range);
+        Instant start = Instant.now().minusSeconds(days * 24L * 60 * 60);
+        List<Booking> bookings = bookingRepository.findConfirmedOrCompletedSince(start);
+        Map<String, BigDecimal> byDate = new HashMap<>();
+        for (Booking b : bookings) {
+            String key = LocalDate.ofInstant(b.getCreatedAt(), ZoneOffset.UTC).toString();
+            BigDecimal amt = b.getFinalAmount() != null ? b.getFinalAmount() : BigDecimal.ZERO;
+            byDate.merge(key, amt, BigDecimal::add);
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (int i = days - 1; i >= 0; i--) {
+            LocalDate d = LocalDate.ofInstant(Instant.now(), ZoneOffset.UTC).minusDays(i);
+            String k = d.toString();
+            BigDecimal rev = byDate.getOrDefault(k, BigDecimal.ZERO);
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("date", k);
+            row.put("revenue", rev);
+            out.add(row);
+        }
+        return out;
+    }
+
+    /**
+     * Daily occupancy (0–1) aligned with Nest {@code GET /admin/occupancy}.
+     */
+    public List<Map<String, Object>> getOccupancySeries(String range) {
+        int days = parseRangeDays(range);
+        Instant start = Instant.now().minusSeconds(days * 24L * 60 * 60);
+        List<Showtime> showtimes = showtimeRepository.findActiveStartingFrom(start);
+        Map<UUID, Integer> bookedByShowtime = new HashMap<>();
+        if (!showtimes.isEmpty()) {
+            List<UUID> ids = showtimes.stream().map(Showtime::getId).toList();
+            for (Object[] row : bookingItemRepository.countBookedItemsByShowtimeIds(ids)) {
+                bookedByShowtime.put((UUID) row[0], ((Number) row[1]).intValue());
+            }
+        }
+        Map<String, long[]> byDate = new HashMap<>();
+        for (var st : showtimes) {
+            String key = LocalDate.ofInstant(st.getStartTime(), ZoneOffset.UTC).toString();
+            int cap = st.getRoom() != null && st.getRoom().getTotalSeats() != null
+                    ? st.getRoom().getTotalSeats() : 0;
+            int booked = bookedByShowtime.getOrDefault(st.getId(), 0);
+            long[] agg = byDate.computeIfAbsent(key, k -> new long[]{0, 0});
+            agg[0] += booked;
+            agg[1] += cap;
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (int i = days - 1; i >= 0; i--) {
+            LocalDate d = LocalDate.ofInstant(Instant.now(), ZoneOffset.UTC).minusDays(i);
+            String k = d.toString();
+            long[] v = byDate.get(k);
+            double occ = (v != null && v[1] > 0) ? (double) v[0] / (double) v[1] : 0.0;
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("date", k);
+            row.put("occupancy", occ);
+            out.add(row);
+        }
+        return out;
+    }
+
+    /** Daily rows for admin sales report chart (date, revenue, bookings). */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> getSalesDailyReport(Instant from, Instant to) {
+        Map<String, Object> revenue = getRevenue(from, to);
+        return (List<Map<String, Object>>) revenue.get("daily");
+    }
 
     public Map<String, Object> getRevenue(Instant from, Instant to) {
         var revenue = bookingRepository.sumRevenueBetween(from, to);
@@ -251,13 +364,16 @@ public class AnalyticsService {
             var movie = entry.getValue().get(0).getShowtime().getMovie();
             BigDecimal rev = entry.getValue().stream().map(Booking::getFinalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
             int tickets = entry.getValue().stream().mapToInt(b -> b.getItems().size()).sum();
-            result.add(Map.of(
-                    "movieId", movie.getId(),
-                    "title", movie.getTitle(),
-                    "bookingCount", entry.getValue().size(),
-                    "ticketCount", tickets,
-                    "revenue", rev
-            ));
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("movieId", movie.getId());
+            row.put("movieTitle", movie.getTitle());
+            row.put("title", movie.getTitle());
+            row.put("bookings", entry.getValue().size());
+            row.put("bookingCount", entry.getValue().size());
+            row.put("ticketCount", tickets);
+            row.put("revenue", rev);
+            row.put("occupancy", 0.0);
+            result.add(row);
         }
         result.sort((a, b) -> ((BigDecimal) b.get("revenue")).compareTo((BigDecimal) a.get("revenue")));
         return result;
@@ -275,15 +391,138 @@ public class AnalyticsService {
             var cinema = entry.getValue().get(0).getShowtime().getCinema();
             BigDecimal rev = entry.getValue().stream().map(Booking::getFinalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
             int tickets = entry.getValue().stream().mapToInt(b -> b.getItems().size()).sum();
-            result.add(Map.of(
-                    "cinemaId", cinema.getId(),
-                    "name", cinema.getName(),
-                    "bookingCount", entry.getValue().size(),
-                    "ticketCount", tickets,
-                    "revenue", rev
-            ));
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("cinemaId", cinema.getId());
+            row.put("cinemaName", cinema.getName());
+            row.put("name", cinema.getName());
+            row.put("bookings", entry.getValue().size());
+            row.put("bookingCount", entry.getValue().size());
+            row.put("ticketCount", tickets);
+            row.put("revenue", rev);
+            row.put("occupancy", 0.0);
+            result.add(row);
         }
         result.sort((a, b) -> ((BigDecimal) b.get("revenue")).compareTo((BigDecimal) a.get("revenue")));
         return result;
+    }
+
+    /**
+     * Forecast line chart: next 7 calendar days after {@code to}, estimated revenue = average daily in range.
+     * Shape matches frontend {@code useAdminAnalyticsForecast}: {@code [{ date, revenue }]}.
+     */
+    public List<Map<String, Object>> getForecastSeries(Instant from, Instant to) {
+        var revenueData = getRevenue(from, to);
+        @SuppressWarnings("unchecked")
+        var daily = (List<Map<String, Object>>) revenueData.get("daily");
+        if (daily == null || daily.isEmpty()) {
+            return List.of();
+        }
+        BigDecimal totalRevenue = (BigDecimal) revenueData.get("totalRevenue");
+        if (totalRevenue == null) {
+            totalRevenue = BigDecimal.ZERO;
+        }
+        double avgDailyRev = daily.size() > 0 ? totalRevenue.doubleValue() / daily.size() : 0.0;
+
+        LocalDate end = LocalDate.ofInstant(to, ZoneOffset.UTC);
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (int i = 1; i <= 7; i++) {
+            LocalDate d = end.plusDays(i);
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("date", d.toString());
+            row.put("revenue", avgDailyRev);
+            out.add(row);
+        }
+        return out;
+    }
+
+    /**
+     * Occupancy heatmap: one row per (cinema, date) with ratio 0–1.
+     * Matches frontend {@code useAdminAnalyticsOccupancy}.
+     */
+    public List<Map<String, Object>> getOccupancyByCinemaDate(Instant from, Instant to) {
+        List<Showtime> showtimes = showtimeRepository.findActiveInRange(from, to);
+        if (showtimes.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> ids = showtimes.stream().map(Showtime::getId).toList();
+        Map<UUID, Integer> bookedByShowtime = new HashMap<>();
+        if (!ids.isEmpty()) {
+            for (Object[] row : bookingItemRepository.countBookedItemsByShowtimeIds(ids)) {
+                bookedByShowtime.put((UUID) row[0], ((Number) row[1]).intValue());
+            }
+        }
+        Map<UUID, Map<String, long[]>> byCinemaThenDate = new HashMap<>();
+        Map<UUID, String> cinemaNames = new HashMap<>();
+        for (Showtime st : showtimes) {
+            UUID cid = st.getCinema().getId();
+            cinemaNames.putIfAbsent(cid, st.getCinema().getName());
+            String dateStr = LocalDate.ofInstant(st.getStartTime(), ZoneOffset.UTC).toString();
+            int cap = st.getRoom().getTotalSeats() != null ? st.getRoom().getTotalSeats() : 0;
+            int booked = bookedByShowtime.getOrDefault(st.getId(), 0);
+            Map<String, long[]> byDate = byCinemaThenDate.computeIfAbsent(cid, k -> new HashMap<>());
+            long[] agg = byDate.computeIfAbsent(dateStr, k -> new long[]{0, 0});
+            agg[0] += booked;
+            agg[1] += cap;
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        List<UUID> cinemaIds = new ArrayList<>(byCinemaThenDate.keySet());
+        cinemaIds.sort(Comparator.comparing(cinemaNames::get));
+        for (UUID cid : cinemaIds) {
+            Map<String, long[]> byDate = byCinemaThenDate.get(cid);
+            List<String> dates = new ArrayList<>(byDate.keySet());
+            Collections.sort(dates);
+            for (String dateStr : dates) {
+                long[] v = byDate.get(dateStr);
+                double occ = v[1] > 0 ? (double) v[0] / (double) v[1] : 0.0;
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("cinemaId", cid.toString());
+                row.put("cinemaName", cinemaNames.get(cid));
+                row.put("date", dateStr);
+                row.put("occupancy", occ);
+                out.add(row);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Pie chart: {@code [{ segment, count, percentage }]} from tier breakdown.
+     */
+    public List<Map<String, Object>> getCustomerSegmentsChart() {
+        Map<String, Object> raw = getCustomerSegments();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> byTier = (List<Map<String, Object>>) raw.get("byTier");
+        if (byTier == null) {
+            return List.of();
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Map<String, Object> t : byTier) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("segment", String.valueOf(t.get("tier")));
+            row.put("count", ((Number) t.get("count")).longValue());
+            row.put("percentage", ((Number) t.get("percentage")).doubleValue());
+            out.add(row);
+        }
+        return out;
+    }
+
+    /**
+     * 24 rows: hour + booking count (CONFIRMED) in range.
+     */
+    public List<Map<String, Object>> getPeakHoursSeries(Instant from, Instant to) {
+        Map<String, Object> ph = getPeakHours(from, to);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> byHour = (List<Map<String, Object>>) ph.get("byHour");
+        if (byHour == null) {
+            return List.of();
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Map<String, Object> h : byHour) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("hour", ((Number) h.get("hour")).intValue());
+            row.put("bookings", ((Number) h.get("bookings")).longValue());
+            out.add(row);
+        }
+        return out;
     }
 }

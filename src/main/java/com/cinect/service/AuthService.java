@@ -15,6 +15,7 @@ import com.cinect.repository.MembershipTierRepository;
 import com.cinect.repository.RoleRepository;
 import com.cinect.repository.UserRepository;
 import com.cinect.security.JwtService;
+import com.cinect.util.RoleUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -103,7 +104,7 @@ public class AuthService {
         }
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
-        var role = user.getRoles().isEmpty() ? "USER" : user.getRoles().iterator().next().getName().name();
+        var role = RoleUtil.pickPrimaryRoleName(user.getRoles());
         var accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), role);
         var refreshToken = jwtService.generateRefreshToken(user.getId());
         user.setRefreshToken(refreshToken);
@@ -126,7 +127,7 @@ public class AuthService {
         if (!req.getRefreshToken().equals(user.getRefreshToken())) {
             throw new UnauthorizedException("Refresh token mismatch");
         }
-        var role = user.getRoles().isEmpty() ? "USER" : user.getRoles().iterator().next().getName().name();
+        var role = RoleUtil.pickPrimaryRoleName(user.getRoles());
         var accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), role);
         var refreshToken = jwtService.generateRefreshToken(user.getId());
         user.setRefreshToken(refreshToken);
@@ -213,7 +214,7 @@ public class AuthService {
             user = createOAuthUser(provider, providerId, syntheticEmail, fullName, avatar);
         }
 
-        var role = user.getRoles().isEmpty() ? "USER" : user.getRoles().iterator().next().getName().name();
+        var role = RoleUtil.pickPrimaryRoleName(user.getRoles());
         var accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), role);
         var refreshToken = jwtService.generateRefreshToken(user.getId());
         user.setRefreshToken(refreshToken);
@@ -259,8 +260,7 @@ public class AuthService {
     }
 
     private UserResponse toUserResponse(User user) {
-        String role = user.getRoles().isEmpty() ? "USER"
-                : user.getRoles().iterator().next().getName().name();
+        String role = RoleUtil.pickPrimaryRoleName(user.getRoles());
         return UserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())

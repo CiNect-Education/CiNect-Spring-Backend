@@ -53,7 +53,7 @@ public class PromotionController {
     public ResponseEntity<ApiResponse<PromotionResponse>> lookupByCode(
             @RequestParam String code) {
         return promotionService.findActiveByCode(code)
-                .map(ResponseEntity.ok()::body)
+                .map(p -> ResponseEntity.ok(ApiResponse.success(p)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
