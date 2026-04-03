@@ -3,7 +3,9 @@ package com.cinect.service;
 import com.cinect.dto.request.CreateCinemaRequest;
 import com.cinect.dto.request.UpdateCinemaRequest;
 import com.cinect.dto.response.CinemaResponse;
+import com.cinect.dto.response.RoomResponse;
 import com.cinect.entity.Cinema;
+import com.cinect.entity.Room;
 import com.cinect.exception.BadRequestException;
 import com.cinect.exception.ResourceNotFoundException;
 import com.cinect.repository.CinemaRepository;
@@ -15,13 +17,23 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class CinemaService {
 
     private final CinemaRepository cinemaRepository;
+
+    /** Full list with nested rooms for admin UI (Nest-compatible). */
+    @Transactional(readOnly = true)
+    public List<CinemaResponse> findAllForAdmin() {
+        return cinemaRepository.findAllActiveWithRooms().stream()
+                .map(this::toResponseWithRooms)
+                .collect(Collectors.toList());
+    }
 
     @Transactional(readOnly = true)
     public Page<CinemaResponse> findAll(String city, String search, int page, int limit) {
@@ -111,6 +123,30 @@ public class CinemaService {
                 .roomCount(roomCount)
                 .createdAt(c.getCreatedAt())
                 .updatedAt(c.getUpdatedAt())
+                .build();
+    }
+
+    private CinemaResponse toResponseWithRooms(Cinema c) {
+        CinemaResponse base = toResponse(c);
+        List<RoomResponse> rooms = c.getRooms() == null ? List.of() : c.getRooms().stream()
+                .filter(r -> r.getIsActive() == null || r.getIsActive())
+                .map(r -> roomToAdminSummary(c, r))
+                .collect(Collectors.toList());
+        base.setRooms(rooms);
+        return base;
+    }
+
+    private RoomResponse roomToAdminSummary(Cinema c, Room r) {
+        return RoomResponse.builder()
+                .id(r.getId())
+                .cinemaId(c.getId())
+                .name(r.getName())
+                .format(r.getFormat())
+                .totalSeats(r.getTotalSeats())
+                .rows(r.getRows())
+                .columns(r.getColumns())
+                .isActive(r.getIsActive())
+                .createdAt(r.getCreatedAt())
                 .build();
     }
 }

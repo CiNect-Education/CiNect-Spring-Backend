@@ -2,6 +2,7 @@ package com.cinect.controller;
 
 import com.cinect.dto.request.*;
 import com.cinect.dto.response.*;
+import com.cinect.util.RoleUtil;
 import com.cinect.entity.AuditLog;
 import com.cinect.entity.PricingRule;
 import com.cinect.service.*;
@@ -24,9 +25,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,17 +63,22 @@ public class AdminController {
     @GetMapping("/kpis")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getKpis(
             @RequestParam(required = false) String range) {
-        int days = "7d".equals(range) ? 7 : "90d".equals(range) ? 90 : 30;
-        java.time.Instant to = Instant.now();
-        java.time.Instant from = java.time.LocalDate.now().minusDays(days).atStartOfDay(ZoneOffset.UTC).toInstant();
-        var revenue = analyticsService.getRevenue(from, to);
-        long totalUsers = userRepository.count();
-        return ResponseEntity.ok(ApiResponse.success(Map.of(
-                "totalRevenue", revenue.get("totalRevenue"),
-                "totalBookings", revenue.get("totalBookings"),
-                "totalUsers", totalUsers,
-                "confirmedBookings", revenue.get("totalBookings")
-        )));
+        var data = analyticsService.getAdminKpis(range);
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    @GetMapping("/revenue")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRevenueSeries(
+            @RequestParam(required = false) String range) {
+        var data = analyticsService.getRevenueSeries(range);
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    @GetMapping("/occupancy")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getOccupancySeries(
+            @RequestParam(required = false) String range) {
+        var data = analyticsService.getOccupancySeries(range);
+        return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     @GetMapping("/bookings/recent")
@@ -79,9 +89,23 @@ public class AdminController {
     }
 
     @GetMapping("/rooms")
-    public ResponseEntity<ApiResponse<List<RoomResponse>>> listRooms() {
-        var list = roomService.findAllRooms();
+    public ResponseEntity<ApiResponse<List<RoomResponse>>> listRooms(
+            @RequestParam(required = false) UUID cinemaId) {
+        var list = roomService.findAllForAdmin(cinemaId);
         return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
+    @PostMapping("/rooms")
+    public ResponseEntity<ApiResponse<RoomResponse>> createRoomDirect(@Valid @RequestBody AdminDirectRoomRequest req) {
+        var data = roomService.createDirect(
+                req.getCinemaId(),
+                req.getName(),
+                req.getFormat(),
+                req.getTotalSeats(),
+                req.getRows(),
+                req.getColumns(),
+                req.getIsActive());
+        return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     @PutMapping("/rooms/{id}")
@@ -181,26 +205,38 @@ public class AdminController {
     }
 
     @GetMapping("/reports/sales")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getSalesReport(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
-        var data = analyticsService.getSalesReport(from, to);
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSalesReport(
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        LocalDate fromD = from != null ? LocalDate.parse(from) : LocalDate.now(ZoneOffset.UTC).minusDays(30);
+        LocalDate toD = to != null ? LocalDate.parse(to) : LocalDate.now(ZoneOffset.UTC);
+        Instant fromInst = fromD.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant toInst = toD.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        var data = analyticsService.getSalesDailyReport(fromInst, toInst);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     @GetMapping("/reports/movies")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMovieReport(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
-        var data = analyticsService.getMoviePerformanceReport(from, to);
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        LocalDate fromD = from != null ? LocalDate.parse(from) : LocalDate.now(ZoneOffset.UTC).minusDays(30);
+        LocalDate toD = to != null ? LocalDate.parse(to) : LocalDate.now(ZoneOffset.UTC);
+        Instant fromInst = fromD.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant toInst = toD.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        var data = analyticsService.getMoviePerformanceReport(fromInst, toInst);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     @GetMapping("/reports/cinemas")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCinemaReport(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
-        var data = analyticsService.getCinemaPerformanceReport(from, to);
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        LocalDate fromD = from != null ? LocalDate.parse(from) : LocalDate.now(ZoneOffset.UTC).minusDays(30);
+        LocalDate toD = to != null ? LocalDate.parse(to) : LocalDate.now(ZoneOffset.UTC);
+        Instant fromInst = fromD.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant toInst = toD.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        var data = analyticsService.getCinemaPerformanceReport(fromInst, toInst);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -235,7 +271,7 @@ public class AdminController {
                 .memberSince(Instant.now())
                 .build();
         membershipRepository.save(membership);
-        String roleStr = user.getRoles().isEmpty() ? "USER" : user.getRoles().iterator().next().getName().name();
+        String roleStr = RoleUtil.pickPrimaryRoleName(user.getRoles());
         var resp = UserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
@@ -273,7 +309,7 @@ public class AdminController {
             } catch (Exception ignored) { }
         }
         userRepository.save(user);
-        String roleStr = user.getRoles().isEmpty() ? "USER" : user.getRoles().iterator().next().getName().name();
+        String roleStr = RoleUtil.pickPrimaryRoleName(user.getRoles());
         var resp = UserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
@@ -301,32 +337,22 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
-    @GetMapping("/analytics/forecast")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getForecast(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
-        Instant toInst = to != null ? to : Instant.now();
-        Instant fromInst = from != null ? from : java.time.LocalDate.now().minusDays(30).atStartOfDay(ZoneOffset.UTC).toInstant();
-        var data = analyticsService.getRevenueForecast(fromInst, toInst);
-        return ResponseEntity.ok(ApiResponse.success(data));
-    }
-
-    @GetMapping("/analytics/customer-segments")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getCustomerSegments() {
-        var data = analyticsService.getCustomerSegments();
-        return ResponseEntity.ok(ApiResponse.success(data));
-    }
-
     @GetMapping("/movies")
     public ResponseEntity<ApiResponse<List<MovieResponse>>> listMovies(
             @RequestParam(required = false) com.cinect.entity.enums.MovieStatus status,
             @RequestParam(required = false) String search,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int limit) {
-        var data = movieService.findAll(status, search, null, page, limit);
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer limit) {
+        if (page == null && limit == null) {
+            var list = movieService.findAllForAdmin();
+            return ResponseEntity.ok(ApiResponse.success(list));
+        }
+        int p = page != null ? page : 0;
+        int l = limit != null ? limit : 20;
+        var data = movieService.findAll(status, search, null, p, l);
         var meta = PageMeta.builder()
-                .page(page)
-                .limit(limit)
+                .page(p)
+                .limit(l)
                 .total(data.getTotalElements())
                 .totalPages(data.getTotalPages())
                 .hasNext(data.hasNext())
@@ -359,12 +385,18 @@ public class AdminController {
     public ResponseEntity<ApiResponse<List<CinemaResponse>>> listCinemas(
             @RequestParam(required = false) String city,
             @RequestParam(required = false) String search,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int limit) {
-        var data = cinemaService.findAll(city, search, page, limit);
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer limit) {
+        if (page == null && limit == null && city == null && search == null) {
+            var list = cinemaService.findAllForAdmin();
+            return ResponseEntity.ok(ApiResponse.success(list));
+        }
+        int p = page != null ? page : 0;
+        int l = limit != null ? limit : 20;
+        var data = cinemaService.findAll(city, search, p, l);
         var meta = PageMeta.builder()
-                .page(page)
-                .limit(limit)
+                .page(p)
+                .limit(l)
                 .total(data.getTotalElements())
                 .totalPages(data.getTotalPages())
                 .hasNext(data.hasNext())
@@ -451,8 +483,7 @@ public class AdminController {
                 .hasPrev(data.hasPrevious())
                 .build();
         var content = data.map(u -> {
-            String role = u.getRoles().isEmpty() ? "USER"
-                    : u.getRoles().iterator().next().getName().name();
+            String role = RoleUtil.pickPrimaryRoleName(u.getRoles());
             return UserResponse.builder()
                 .id(u.getId())
                 .email(u.getEmail())
@@ -548,33 +579,88 @@ public class AdminController {
     }
 
     @GetMapping("/analytics/revenue")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getRevenue(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
-        Instant toInst = to != null ? to : Instant.now();
-        Instant fromInst = from != null ? from : java.time.LocalDate.now().minusDays(30).atStartOfDay(ZoneOffset.UTC).toInstant();
-        var data = analyticsService.getRevenue(fromInst, toInst);
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAnalyticsRevenue(
+            @RequestParam(required = false) String range,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        var w = resolveAnalyticsWindow(range, from, to);
+        var revenue = analyticsService.getRevenue(w.from(), w.to());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> daily = (List<Map<String, Object>>) revenue.get("daily");
+        List<Map<String, Object>> chart = new ArrayList<>();
+        if (daily != null) {
+            for (Map<String, Object> day : daily) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("date", String.valueOf(day.get("date")));
+                Object revObj = day.get("revenue");
+                double revNum = revObj instanceof BigDecimal
+                        ? ((BigDecimal) revObj).doubleValue()
+                        : ((Number) revObj).doubleValue();
+                row.put("revenue", revNum);
+                chart.add(row);
+            }
+        }
+        return ResponseEntity.ok(ApiResponse.success(chart));
+    }
+
+    @GetMapping("/analytics/forecast")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAnalyticsForecast(
+            @RequestParam(required = false) String range,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        var w = resolveAnalyticsWindow(range, from, to);
+        var data = analyticsService.getForecastSeries(w.from(), w.to());
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     @GetMapping("/analytics/occupancy")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getOccupancy(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
-        Instant toInst = to != null ? to : Instant.now();
-        Instant fromInst = from != null ? from : java.time.LocalDate.now().minusDays(30).atStartOfDay(ZoneOffset.UTC).toInstant();
-        var data = analyticsService.getOccupancy(fromInst, toInst);
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAnalyticsOccupancy(
+            @RequestParam(required = false) String range,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        var w = resolveAnalyticsWindow(range, from, to);
+        var data = analyticsService.getOccupancyByCinemaDate(w.from(), w.to());
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    @GetMapping("/analytics/customer-segments")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCustomerSegmentsChart() {
+        var data = analyticsService.getCustomerSegmentsChart();
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     @GetMapping("/analytics/peak-hours")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getPeakHours(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
-        Instant toInst = to != null ? to : Instant.now();
-        Instant fromInst = from != null ? from : java.time.LocalDate.now().minusDays(30).atStartOfDay(ZoneOffset.UTC).toInstant();
-        var data = analyticsService.getPeakHours(fromInst, toInst);
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAnalyticsPeakHours(
+            @RequestParam(required = false) String range,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        var w = resolveAnalyticsWindow(range, from, to);
+        var data = analyticsService.getPeakHoursSeries(w.from(), w.to());
         return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    /**
+     * Aligns with admin analytics page: {@code range} (7d/30d/90d) or {@code from}/{@code to} as {@code YYYY-MM-DD}.
+     */
+    private AnalyticsWindow resolveAnalyticsWindow(String range, String fromDate, String toDate) {
+        Instant toInst = Instant.now();
+        if (fromDate != null && toDate != null && !fromDate.isBlank() && !toDate.isBlank()) {
+            LocalDate fromD = LocalDate.parse(fromDate);
+            LocalDate toD = LocalDate.parse(toDate);
+            return new AnalyticsWindow(
+                    fromD.atStartOfDay(ZoneOffset.UTC).toInstant(),
+                    toD.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant());
+        }
+        if (range != null && !range.isBlank() && !"custom".equals(range)) {
+            int days = "7d".equals(range) ? 7 : "90d".equals(range) ? 90 : 30;
+            return new AnalyticsWindow(toInst.minusSeconds(days * 24L * 60 * 60), toInst);
+        }
+        return new AnalyticsWindow(
+                LocalDate.now(ZoneOffset.UTC).minusDays(30).atStartOfDay(ZoneOffset.UTC).toInstant(),
+                toInst);
+    }
+
+    private record AnalyticsWindow(Instant from, Instant to) {
     }
 
     @GetMapping("/roles")

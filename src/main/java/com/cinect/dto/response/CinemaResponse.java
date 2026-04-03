@@ -21,6 +21,8 @@ public class CinemaResponse {
     private Double latitude;
     private Double longitude;
     private Integer roomCount;
+    /** Populated on admin list (Nest-compatible); may be null for paginated public APIs. */
+    private List<RoomResponse> rooms;
     private Instant createdAt;
     private Instant updatedAt;
 }
