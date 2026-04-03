@@ -44,4 +44,14 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
     Page<Showtime> findByIsActiveTrue(Pageable pageable);
 
     List<Showtime> findByMemberExclusiveAndStartTimeAfter(Boolean memberExclusive, Instant startTime);
+
+    @Query("SELECT COUNT(s) FROM Showtime s WHERE s.isActive = true AND s.startTime >= :since")
+    long countActiveStartingFrom(@Param("since") Instant since);
+
+    @Query("SELECT s FROM Showtime s JOIN FETCH s.room r WHERE s.isActive = true AND s.startTime >= :from ORDER BY s.startTime")
+    List<Showtime> findActiveStartingFrom(@Param("from") Instant from);
+
+    @Query("SELECT DISTINCT s FROM Showtime s JOIN FETCH s.cinema JOIN FETCH s.room r WHERE s.isActive = true "
+            + "AND s.startTime >= :startFrom AND s.startTime < :startTo ORDER BY s.startTime")
+    List<Showtime> findActiveInRange(@Param("startFrom") Instant startFrom, @Param("startTo") Instant startTo);
 }

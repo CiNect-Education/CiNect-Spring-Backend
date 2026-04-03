@@ -10,6 +10,7 @@ import com.cinect.entity.Cinema;
 import com.cinect.entity.Room;
 import com.cinect.entity.Seat;
 import com.cinect.entity.enums.SeatStatus;
+import com.cinect.entity.enums.RoomFormat;
 import com.cinect.entity.enums.SeatType;
 import com.cinect.exception.BadRequestException;
 import com.cinect.exception.ResourceNotFoundException;
@@ -42,6 +43,53 @@ public class RoomService {
     public List<RoomResponse> findByCinema(UUID cinemaId) {
         var rooms = roomRepository.findByCinemaIdAndIsActiveTrue(cinemaId);
         return rooms.stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    /** Nest-compatible: accepts labels (2D, 3D, …) or enum names. */
+    public static RoomFormat parseRoomFormat(String input) {
+        if (input == null || input.isBlank()) return RoomFormat._2D;
+        String s = input.trim();
+        for (RoomFormat f : RoomFormat.values()) {
+            if (f.name().equalsIgnoreCase(s) || f.getValue().equalsIgnoreCase(s)) {
+                return f;
+            }
+        }
+        if ("STANDARD2D".equalsIgnoreCase(s) || "2D".equalsIgnoreCase(s)) return RoomFormat._2D;
+        if ("STANDARD3D".equalsIgnoreCase(s) || "3D".equalsIgnoreCase(s)) return RoomFormat._3D;
+        if ("FOURDX".equalsIgnoreCase(s) || "4DX".equalsIgnoreCase(s)) return RoomFormat._4DX;
+        if ("IMAX".equalsIgnoreCase(s)) return RoomFormat.IMAX;
+        if ("DOLBY".equalsIgnoreCase(s)) return RoomFormat.DOLBY;
+        return RoomFormat._2D;
+    }
+
+    @Transactional
+    public RoomResponse createDirect(UUID cinemaId, String name, String formatStr,
+                                     Integer totalSeats, Integer rows, Integer columns, Boolean isActive) {
+        var cinema = cinemaRepository.findById(cinemaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cinema not found"));
+        RoomFormat format = parseRoomFormat(formatStr);
+        int r = rows != null ? rows : 0;
+        int c = columns != null ? columns : 0;
+        var room = Room.builder()
+                .cinema(cinema)
+                .name(name != null && !name.isBlank() ? name : "New Room")
+                .format(format)
+                .rows(r)
+                .columns(c)
+                .totalSeats(totalSeats != null ? totalSeats : 0)
+                .isActive(isActive != null ? isActive : true)
+                .build();
+        room = roomRepository.save(room);
+        return toResponse(room);
+    }
+
+    public List<RoomResponse> findAllForAdmin(UUID cinemaId) {
+        if (cinemaId != null) {
+            return roomRepository.findByCinemaIdAndIsActiveTrue(cinemaId).stream()
+                    .map(r -> toResponse(r))
+                    .collect(Collectors.toList());
+        }
+        return findAllRooms();
     }
 
     public RoomResponse findById(UUID roomId) {
