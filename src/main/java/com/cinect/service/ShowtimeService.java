@@ -32,13 +32,24 @@ public class ShowtimeService {
     private final HoldSeatRepository holdSeatRepository;
 
     public List<ShowtimeResponse> findFiltered(UUID movieId, UUID cinemaId, Instant startFrom, Instant startTo) {
+        return findFiltered(movieId, cinemaId, null, startFrom, startTo);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ShowtimeResponse> findFiltered(UUID movieId, UUID cinemaId, String city, Instant startFrom, Instant startTo) {
         var from = startFrom != null ? startFrom : Instant.now();
         var to = startTo != null ? startTo : from.plus(Duration.ofDays(7));
-        var list = showtimeRepository.findFiltered(movieId, cinemaId, from, to);
+        var normalizedCity = (city != null && !city.isBlank()) ? city.trim() : null;
+        var list = showtimeRepository.findFiltered(movieId, cinemaId, normalizedCity, from, to);
         return list.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     public List<ShowtimeResponse> search(UUID movieId, UUID cinemaId, String date, String format) {
+        return search(movieId, cinemaId, null, date, format);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ShowtimeResponse> search(UUID movieId, UUID cinemaId, String city, String date, String format) {
         Instant startFrom = null;
         Instant startTo = null;
         if (date != null && !date.isEmpty()) {
@@ -46,11 +57,12 @@ public class ShowtimeService {
             startFrom = localDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
             startTo = localDate.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
         }
-        return findFiltered(movieId, cinemaId, startFrom, startTo);
+        return findFiltered(movieId, cinemaId, city, startFrom, startTo);
     }
 
+    @Transactional(readOnly = true)
     public ShowtimeResponse findById(UUID id) {
-        var st = showtimeRepository.findById(id)
+        var st = showtimeRepository.findDetailById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Showtime not found"));
         return toResponse(st);
     }
@@ -131,8 +143,9 @@ public class ShowtimeService {
         showtimeRepository.save(st);
     }
 
+    @Transactional(readOnly = true)
     public SeatMapResponse getSeatMap(UUID showtimeId) {
-        var showtime = showtimeRepository.findById(showtimeId)
+        var showtime = showtimeRepository.findDetailById(showtimeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Showtime not found"));
         var seats = seatRepository.findByRoomId(showtime.getRoom().getId());
         var bookedIds = new HashSet<>(bookingItemRepository.findBookedSeatIds(showtimeId));
