@@ -4,7 +4,7 @@ import com.cinect.dto.request.CreateBookingRequest;
 import com.cinect.dto.response.BookingItemResponse;
 import com.cinect.dto.response.BookingResponse;
 import com.cinect.dto.response.BookingSnackResponse;
-import com.cinect.dto.response.ShowtimeResponse;
+import com.cinect.dto.response.PaymentResponse;
 import com.cinect.entity.*;
 import com.cinect.entity.enums.BookingStatus;
 import com.cinect.entity.enums.DiscountType;
@@ -435,47 +435,40 @@ public class BookingService {
 
     private BookingResponse toResponse(Booking b) {
         var st = b.getShowtime();
-        var showtimeResp = st != null ? ShowtimeResponse.builder()
-                .id(st.getId())
-                .movieId(st.getMovie().getId())
-                .movieTitle(st.getMovie().getTitle())
-                .roomId(st.getRoom().getId())
-                .roomName(st.getRoom().getName())
-                .cinemaId(st.getCinema().getId())
-                .cinemaName(st.getCinema().getName())
-                .startTime(st.getStartTime())
-                .endTime(st.getEndTime())
-                .basePrice(st.getBasePrice())
-                .format(st.getFormat())
-                .language(st.getLanguage())
-                .subtitles(st.getSubtitles())
-                .isActive(st.getIsActive())
-                .memberExclusive(st.getMemberExclusive())
-                .createdAt(st.getCreatedAt())
-                .build() : null;
-        var items = b.getItems() != null
+        var paid = b.getPayments() != null
+                ? b.getPayments().stream()
+                        .filter(p -> p.getStatus() == PaymentStatus.PAID)
+                        .findFirst()
+                        .or(() -> b.getPayments().stream().findFirst())
+                        .orElse(null)
+                : null;
+
+        var seats = b.getItems() != null
                 ? b.getItems().stream().map(i -> BookingItemResponse.builder()
-                .id(i.getId())
-                .seatId(i.getSeat().getId())
-                .rowLabel(i.getRowLabel())
-                .seatNumber(i.getSeatNumber())
-                .seatType(i.getSeatType())
-                .price(i.getPrice())
-                .build()).collect(Collectors.toList())
+                        .id(i.getId())
+                        .seatId(i.getSeat().getId())
+                        .rowLabel(i.getRowLabel())
+                        .seatNumber(i.getSeatNumber())
+                        .seatType(i.getSeatType())
+                        .price(i.getPrice())
+                        .build())
+                        .collect(Collectors.toList())
                 : List.<BookingItemResponse>of();
         var snacks = b.getSnacks() != null
                 ? b.getSnacks().stream().map(s -> BookingSnackResponse.builder()
-                .name(s.getName())
-                .quantity(s.getQuantity())
-                .unitPrice(s.getUnitPrice())
-                .totalPrice(s.getTotalPrice())
-                .build()).collect(Collectors.toList())
+                        .id(s.getId())
+                        .name(s.getName())
+                        .quantity(s.getQuantity())
+                        .unitPrice(s.getUnitPrice())
+                        .totalPrice(s.getTotalPrice())
+                        .build())
+                        .collect(Collectors.toList())
                 : List.<BookingSnackResponse>of();
-        return BookingResponse.builder()
+
+        var builder = BookingResponse.builder()
                 .id(b.getId())
                 .userId(b.getUser().getId())
                 .showtimeId(b.getShowtime().getId())
-                .showtime(showtimeResp)
                 .totalAmount(b.getTotalAmount())
                 .discountAmount(b.getDiscountAmount())
                 .finalAmount(b.getFinalAmount())
@@ -485,9 +478,48 @@ public class BookingService {
                 .giftCardCode(b.getGiftCardCode())
                 .qrCode(b.getQrCode())
                 .expiresAt(b.getExpiresAt())
-                .items(items)
+                .seats(seats)
                 .snacks(snacks)
                 .createdAt(b.getCreatedAt())
-                .build();
+                .updatedAt(b.getUpdatedAt());
+
+        if (st != null) {
+            builder.showtime(
+                    st.getStartTime() != null ? st.getStartTime().toString() : b.getCreatedAt().toString());
+            builder.movieTitle(st.getMovie() != null ? st.getMovie().getTitle() : "");
+            if (st.getMovie() != null) {
+                builder.moviePosterUrl(st.getMovie().getPosterUrl());
+            }
+            builder.cinemaName(st.getCinema() != null ? st.getCinema().getName() : "");
+            builder.roomName(st.getRoom() != null ? st.getRoom().getName() : "");
+            if (st.getFormat() != null) {
+                builder.format(st.getFormat().getValue());
+            } else {
+                builder.format("2D");
+            }
+        } else {
+            builder.showtime(b.getCreatedAt().toString());
+            builder.movieTitle("");
+            builder.cinemaName("");
+            builder.roomName("");
+            builder.format("2D");
+        }
+
+        if (paid != null) {
+            builder.payment(PaymentResponse.builder()
+                    .id(paid.getId())
+                    .bookingId(b.getId())
+                    .method(paid.getMethod())
+                    .amount(paid.getAmount())
+                    .status(paid.getStatus())
+                    .transactionId(paid.getTransactionId())
+                    .paymentUrl(paid.getPaymentUrl())
+                    .errorReason(paid.getErrorReason())
+                    .paidAt(paid.getPaidAt())
+                    .createdAt(paid.getCreatedAt())
+                    .build());
+        }
+
+        return builder.build();
     }
 }

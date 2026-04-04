@@ -51,8 +51,7 @@ public class PromotionController {
     @GetMapping("/lookup")
     public ResponseEntity<ApiResponse<PromotionResponse>> lookupByCode(@RequestParam String code) {
         return promotionService.findActiveByCode(code)
-                // Bọc PromotionResponse vào ApiResponse.success()
-                .map(data -> ResponseEntity.ok(ApiResponse.success(data)))
+                .map(p -> ResponseEntity.ok(ApiResponse.success(p)))
                 .orElse(ResponseEntity.notFound().build());
     }
 

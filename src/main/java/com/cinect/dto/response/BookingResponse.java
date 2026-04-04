@@ -8,12 +8,27 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+/**
+ * API shape aligned with cinect-frontend {@code bookingSchema}: flat movie/showtime fields,
+ * {@code seats} (not items), ISO {@code showtime} string.
+ */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class BookingResponse {
     private UUID id;
     private UUID userId;
     private UUID showtimeId;
-    private ShowtimeResponse showtime;
+    /** Show start time (ISO-8601), same as Nest {@code mapBookingToApi}. */
+    private String showtime;
+    private String movieTitle;
+    private String moviePosterUrl;
+    private String cinemaName;
+    private String roomName;
+    /** Display format: 2D, 3D, IMAX, 4DX, DOLBY */
+    private String format;
     private BigDecimal totalAmount;
     private BigDecimal discountAmount;
     private BigDecimal finalAmount;
@@ -23,7 +38,9 @@ public class BookingResponse {
     private String giftCardCode;
     private String qrCode;
     private Instant expiresAt;
-    private List<BookingItemResponse> items;
+    private List<BookingItemResponse> seats;
     private List<BookingSnackResponse> snacks;
+    private PaymentResponse payment;
     private Instant createdAt;
+    private Instant updatedAt;
 }

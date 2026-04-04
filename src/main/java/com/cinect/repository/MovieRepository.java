@@ -32,4 +32,6 @@ public interface MovieRepository extends JpaRepository<Movie, UUID> {
     Page<Movie> findByGenre(@Param("genreId") UUID genreId, Pageable pageable);
 
     Page<Movie> findByStatusAndIsDeletedFalse(MovieStatus status, Pageable pageable);
+
+    long countByIsDeletedFalse();
 }

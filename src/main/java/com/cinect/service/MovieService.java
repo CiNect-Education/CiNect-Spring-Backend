@@ -31,6 +31,12 @@ public class MovieService {
     private final MovieRepository movieRepository;
     private final GenreRepository genreRepository;
 
+    /** Unpaged admin list (Nest-compatible; avoids default page size 20). */
+    @Transactional(readOnly = true)
+    public List<MovieResponse> findAllForAdmin() {
+        return findAll(null, null, null, 0, 50_000).getContent();
+    }
+
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<MovieResponse> findAll(MovieStatus status, String search, UUID genreId,
                                                                        int page, int limit) {

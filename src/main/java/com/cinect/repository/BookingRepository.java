@@ -35,4 +35,10 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     java.math.BigDecimal sumRevenueBetween(@Param("from") Instant from, @Param("to") Instant to);
 
     List<Booking> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.createdAt >= :from AND b.createdAt <= :to")
+    long countCreatedBetween(@Param("from") Instant from, @Param("to") Instant to);
+
+    @Query("SELECT b FROM Booking b WHERE b.status IN ('CONFIRMED', 'COMPLETED') AND b.createdAt >= :from")
+    List<Booking> findConfirmedOrCompletedSince(@Param("from") Instant from);
 }

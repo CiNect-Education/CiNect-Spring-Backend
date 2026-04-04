@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,4 +29,9 @@ public interface CinemaRepository extends JpaRepository<Cinema, UUID> {
     Page<Cinema> findAllByCityAndSearch(@Param("city") String city, @Param("search") String search, Pageable pageable);
 
     Page<Cinema> findByIsActiveTrue(Pageable pageable);
+
+    long countByIsActiveTrue();
+
+    @Query("SELECT DISTINCT c FROM Cinema c LEFT JOIN FETCH c.rooms WHERE c.isActive = true ORDER BY c.name")
+    List<Cinema> findAllActiveWithRooms();
 }
