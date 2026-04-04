@@ -97,6 +97,7 @@ public class AuthService {
                 .build();
     }
 
+    @Transactional
     public AuthResponse login(LoginRequest req) {
         var normalizedEmail = normalizeEmail(req.getEmail());
         var user = userRepository.findByEmail(normalizedEmail)
