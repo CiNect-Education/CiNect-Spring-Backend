@@ -9,6 +9,7 @@ import com.cinect.entity.Room;
 import com.cinect.exception.BadRequestException;
 import com.cinect.exception.ResourceNotFoundException;
 import com.cinect.repository.CinemaRepository;
+import com.cinect.util.BookingCityResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -38,7 +39,7 @@ public class CinemaService {
     @Transactional(readOnly = true)
     public Page<CinemaResponse> findAll(String city, String search, int page, int limit) {
         Pageable pageable = PageRequest.of(page, limit, Sort.by("name"));
-        String trimmedCity = (city != null && !city.isBlank()) ? city.trim() : null;
+        String trimmedCity = BookingCityResolver.resolveCinemaCityFilter(city);
         String trimmedSearch = (search != null && !search.isBlank()) ? search.trim() : null;
         Page<Cinema> pageResult;
         if (trimmedCity != null && trimmedSearch != null) {

@@ -92,7 +92,7 @@ public class MovieController {
             startFrom = localDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
             startTo = localDate.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
         }
-        var data = showtimeService.findFiltered(id, null, startFrom, startTo);
+        var data = showtimeService.findFiltered(id, null, null, startFrom, startTo);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 }
