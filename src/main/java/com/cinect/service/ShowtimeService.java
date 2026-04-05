@@ -35,8 +35,8 @@ public class ShowtimeService {
     public List<ShowtimeResponse> findFiltered(UUID movieId, UUID cinemaId, String city, Instant startFrom, Instant startTo) {
         var from = startFrom != null ? startFrom : Instant.now();
         var to = startTo != null ? startTo : from.plus(Duration.ofDays(7));
-        String cityFilter = cinemaId != null ? null : BookingCityResolver.resolveCinemaCityFilter(city);
-        var list = showtimeRepository.findFiltered(movieId, cinemaId, cityFilter, from, to);
+        String provinceCode = cinemaId != null ? null : BookingCityResolver.resolveCinemaProvinceCode(city);
+        var list = showtimeRepository.findFiltered(movieId, cinemaId, provinceCode, from, to);
         return list.stream().map(this::toResponse).collect(Collectors.toList());
     }
 

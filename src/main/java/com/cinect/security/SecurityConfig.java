@@ -45,6 +45,7 @@ public class SecurityConfig {
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/movies/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/cinemas/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/provinces/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/showtimes/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/promotions/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/news/**").permitAll()

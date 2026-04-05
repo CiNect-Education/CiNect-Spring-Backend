@@ -8,7 +8,9 @@ import com.cinect.entity.Cinema;
 import com.cinect.entity.Room;
 import com.cinect.exception.BadRequestException;
 import com.cinect.exception.ResourceNotFoundException;
+import com.cinect.entity.ProvinceNew;
 import com.cinect.repository.CinemaRepository;
+import com.cinect.repository.ProvinceNewRepository;
 import com.cinect.util.BookingCityResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
 public class CinemaService {
 
     private final CinemaRepository cinemaRepository;
+    private final ProvinceNewRepository provinceNewRepository;
 
     /** Full list with nested rooms for admin UI (Nest-compatible). */
     @Transactional(readOnly = true)
@@ -39,13 +42,13 @@ public class CinemaService {
     @Transactional(readOnly = true)
     public Page<CinemaResponse> findAll(String city, String search, int page, int limit) {
         Pageable pageable = PageRequest.of(page, limit, Sort.by("name"));
-        String trimmedCity = BookingCityResolver.resolveCinemaCityFilter(city);
+        String provinceCode = BookingCityResolver.resolveCinemaProvinceCode(city);
         String trimmedSearch = (search != null && !search.isBlank()) ? search.trim() : null;
         Page<Cinema> pageResult;
-        if (trimmedCity != null && trimmedSearch != null) {
-            pageResult = cinemaRepository.findAllByCityAndSearch(trimmedCity, trimmedSearch, pageable);
-        } else if (trimmedCity != null) {
-            pageResult = cinemaRepository.findAllByCity(trimmedCity, pageable);
+        if (provinceCode != null && trimmedSearch != null) {
+            pageResult = cinemaRepository.findAllByProvinceCodeAndSearch(provinceCode, trimmedSearch, pageable);
+        } else if (provinceCode != null) {
+            pageResult = cinemaRepository.findAllByProvinceCode(provinceCode, pageable);
         } else if (trimmedSearch != null) {
             pageResult = cinemaRepository.findAllBySearch(trimmedSearch, pageable);
         } else {
@@ -65,11 +68,18 @@ public class CinemaService {
         if (cinemaRepository.findBySlugAndIsActiveTrue(req.getSlug()).isPresent()) {
             throw new BadRequestException("Slug already exists");
         }
+        ProvinceNew province = null;
+        if (req.getProvinceNewId() != null) {
+            province = provinceNewRepository.findById(req.getProvinceNewId())
+                    .orElseThrow(() -> new BadRequestException("Invalid provinceNewId"));
+        }
         var cinema = Cinema.builder()
                 .name(req.getName())
                 .slug(req.getSlug())
                 .address(req.getAddress())
                 .city(req.getCity())
+                .ward(req.getWard())
+                .provinceNew(province)
                 .district(req.getDistrict())
                 .phone(req.getPhone())
                 .email(req.getEmail())
@@ -91,6 +101,12 @@ public class CinemaService {
         if (req.getSlug() != null) cinema.setSlug(req.getSlug());
         if (req.getAddress() != null) cinema.setAddress(req.getAddress());
         if (req.getCity() != null) cinema.setCity(req.getCity());
+        if (req.getWard() != null) cinema.setWard(req.getWard());
+        if (req.getProvinceNewId() != null) {
+            var p = provinceNewRepository.findById(req.getProvinceNewId())
+                    .orElseThrow(() -> new BadRequestException("Invalid provinceNewId"));
+            cinema.setProvinceNew(p);
+        }
         if (req.getDistrict() != null) cinema.setDistrict(req.getDistrict());
         if (req.getPhone() != null) cinema.setPhone(req.getPhone());
         if (req.getEmail() != null) cinema.setEmail(req.getEmail());
@@ -114,6 +130,8 @@ public class CinemaService {
                 .slug(c.getSlug())
                 .address(c.getAddress())
                 .city(c.getCity())
+                .ward(c.getWard())
+                .provinceCode(c.getProvinceNew() != null ? c.getProvinceNew().getCode() : null)
                 .district(c.getDistrict())
                 .phone(c.getPhone())
                 .email(c.getEmail())
