@@ -1,6 +1,7 @@
 package com.cinect.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.time.Instant;
@@ -9,6 +10,9 @@ import java.time.Instant;
 @NoArgsConstructor @AllArgsConstructor @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
+    /** Always serialized (including explicit null) so clients can rely on `data` being present. */
+    @JsonProperty("data")
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     private T data;
     private Object meta;
     private String message;
