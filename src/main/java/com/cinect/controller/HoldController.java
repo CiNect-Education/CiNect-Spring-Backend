@@ -1,46 +1,24 @@
 package com.cinect.controller;
 
-import com.cinect.dto.request.CreateHoldRequest;
-import com.cinect.dto.response.ApiResponse;
-import com.cinect.dto.response.HoldResponse;
-import com.cinect.security.UserPrincipal;
+import com.cinect.dto.request.HoldRequest;
 import com.cinect.service.HoldService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
-
 @RestController
-@RequestMapping("/holds")
+@RequestMapping("/holds") // Kết hợp với context-path /api/v1 trong application.yml
 @RequiredArgsConstructor
 public class HoldController {
 
     private final HoldService holdService;
 
-    @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<HoldResponse>> getHold(
-            @PathVariable UUID id,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        var data = holdService.getHoldById(id, principal.getId());
-        return ResponseEntity.ok(ApiResponse.success(data));
-    }
-
     @PostMapping
-    public ResponseEntity<ApiResponse<HoldResponse>> createHold(
-            @Valid @RequestBody CreateHoldRequest req,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        var data = holdService.createHold(principal.getId(), req);
-        return ResponseEntity.ok(ApiResponse.success(data));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> releaseHold(
-            @PathVariable UUID id,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        holdService.releaseHold(id, principal.getId());
-        return ResponseEntity.ok(ApiResponse.success(null));
+    public ResponseEntity<?> holdSeats(@RequestBody HoldRequest request) {
+        // Lấy email người dùng đang đăng nhập từ JWT Token
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        holdService.holdSeats(email, request);
+        return ResponseEntity.ok().build();
     }
 }

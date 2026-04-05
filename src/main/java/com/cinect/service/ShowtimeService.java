@@ -49,6 +49,7 @@ public class ShowtimeService {
         return findFiltered(movieId, cinemaId, startFrom, startTo);
     }
 
+    @Transactional(readOnly = true)
     public ShowtimeResponse findById(UUID id) {
         var st = showtimeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Showtime not found"));
