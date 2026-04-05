@@ -32,4 +32,12 @@ public interface HoldRepository extends JpaRepository<Hold, UUID> {
     @Modifying
     @Query("UPDATE Hold h SET h.status = 'EXPIRED' WHERE h.status = 'ACTIVE' AND h.expiresAt < :now")
     int expireOldHolds(@Param("now") Instant now);
+
+    @Query("SELECT DISTINCT h FROM Hold h "
+            + "JOIN FETCH h.showtime s "
+            + "JOIN FETCH s.movie "
+            + "JOIN FETCH s.cinema "
+            + "JOIN FETCH s.room "
+            + "WHERE h.id = :id")
+    Optional<Hold> findByIdWithShowtimeGraph(@Param("id") UUID id);
 }
