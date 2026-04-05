@@ -10,9 +10,11 @@ public class SocketIOConfig {
     @Bean
     public SocketIOServer socketIOServer() {
         com.corundumstudio.socketio.Configuration config = new com.corundumstudio.socketio.Configuration();
-        config.setHostname("localhost");
+        // Lắng nghe trên mọi IP (0.0.0.0)
+        config.setHostname("0.0.0.0");
         config.setPort(8082); // Mở port 8082 riêng cho Socket.IO
-        config.setOrigin("*"); // Cho phép Frontend kết nối
+        config.setOrigin(null); // Sửa thành null để Netty không chặn bất kỳ Origin nào (tránh lỗi CORS)
+        config.setAllowCustomRequests(true); // Cực kỳ quan trọng để không bị chặn Upgrade lên WebSocket
         return new SocketIOServer(config);
     }
 }

@@ -1,26 +1,29 @@
 package com.cinect.config;
 
 import com.corundumstudio.socketio.SocketIOServer;
-import lombok.RequiredArgsConstructor;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.stereotype.Component;
-
 import jakarta.annotation.PreDestroy;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class SocketIOServerRunner implements CommandLineRunner {
+public class SocketIOServerRunner {
 
     private final SocketIOServer server;
 
-    @Override
-    public void run(String... args) {
+    @EventListener(ApplicationReadyEvent.class)
+    public void startSocketIOServer() {
         server.start();
-        System.out.println("Socket.IO Server started on port 8082");
+        System.out.println("===============================================");
+        System.out.println("✅ Socket.IO Server STARTED successfully on port 8082");
+        System.out.println("===============================================");
     }
 
     @PreDestroy
-    public void stop() {
+    public void stopSocketIOServer() {
         server.stop();
+        System.out.println("🛑 Socket.IO Server STOPPED");
     }
 }

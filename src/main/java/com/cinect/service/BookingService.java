@@ -16,7 +16,7 @@ import com.cinect.entity.enums.PromotionStatus;
 import com.cinect.exception.BadRequestException;
 import com.cinect.exception.ResourceNotFoundException;
 import com.cinect.repository.*;
-import com.cinect.websocket.SeatWebSocketHandler;
+import com.cinect.config.WebsocketGateway;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -44,7 +44,7 @@ public class BookingService {
     private final PricingService pricingService;
     private final PromotionService promotionService;
     private final MembershipService membershipService;
-    private final SeatWebSocketHandler seatWebSocketHandler;
+    private final WebsocketGateway websocketGateway;
     private final GiftCardService giftCardService;
     private final PromotionRepository promotionRepository;
     private final MembershipRepository membershipRepository;
@@ -206,9 +206,10 @@ public class BookingService {
         List<UUID> bookedSeatIds = booking.getItems().stream()
                 .map(bi -> bi.getSeat().getId())
                 .collect(Collectors.toList());
+        List<String> stringSeatIds = bookedSeatIds.stream().map(UUID::toString).collect(Collectors.toList());
         if (!bookedSeatIds.isEmpty()) {
-            seatWebSocketHandler.broadcastSeatEvent(
-                    booking.getShowtime().getId(), SeatWebSocketHandler.SEAT_BOOKED, bookedSeatIds);
+            websocketGateway.broadcastSeatEvent(
+                    "SEAT_BOOKED", booking.getShowtime().getId().toString(), stringSeatIds);
         }
 
         return toResponse(booking);
@@ -232,10 +233,11 @@ public class BookingService {
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.save(booking);
 
+        List<String> stringSeatIds = releasedSeatIds.stream().map(UUID::toString).collect(Collectors.toList());
         // Emit seat released event via WebSocket
         if (!releasedSeatIds.isEmpty()) {
-            seatWebSocketHandler.broadcastSeatEvent(
-                    booking.getShowtime().getId(), SeatWebSocketHandler.SEAT_RELEASED, releasedSeatIds);
+            websocketGateway.broadcastSeatEvent(
+                    "SEAT_RELEASED", booking.getShowtime().getId().toString(), stringSeatIds);
         }
     }
 
@@ -254,9 +256,10 @@ public class BookingService {
                 .collect(Collectors.toList());
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.save(booking);
+        List<String> stringSeatIds = releasedSeatIds.stream().map(UUID::toString).collect(Collectors.toList());
         if (!releasedSeatIds.isEmpty()) {
-            seatWebSocketHandler.broadcastSeatEvent(
-                    booking.getShowtime().getId(), SeatWebSocketHandler.SEAT_RELEASED, releasedSeatIds);
+            websocketGateway.broadcastSeatEvent(
+                    "SEAT_RELEASED", booking.getShowtime().getId().toString(), stringSeatIds);
         }
         return toResponse(booking);
     }
@@ -280,9 +283,10 @@ public class BookingService {
                 paymentRepository.save(p);
             }
         }
+        List<String> stringSeatIds = releasedSeatIds.stream().map(UUID::toString).collect(Collectors.toList());
         if (!releasedSeatIds.isEmpty()) {
-            seatWebSocketHandler.broadcastSeatEvent(
-                    booking.getShowtime().getId(), SeatWebSocketHandler.SEAT_RELEASED, releasedSeatIds);
+            websocketGateway.broadcastSeatEvent(
+                    "SEAT_RELEASED", booking.getShowtime().getId().toString(), stringSeatIds);
         }
         return toResponse(booking);
     }

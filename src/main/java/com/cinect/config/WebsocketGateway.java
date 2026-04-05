@@ -20,11 +20,13 @@ public class WebsocketGateway {
         this.namespace.addEventListener("joinShowtime", ShowtimeRequest.class, (client, data, ackSender) -> {
             String room = "showtimes:" + data.getShowtimeId();
             client.joinRoom(room);
+            System.out.println("🔗 Trình duyệt đã tham gia phòng: " + room);
         });
 
         this.namespace.addEventListener("leaveShowtime", ShowtimeRequest.class, (client, data, ackSender) -> {
             String room = "showtimes:" + data.getShowtimeId();
             client.leaveRoom(room);
+            System.out.println("👋 Trình duyệt đã rời phòng: " + room);
         });
     }
 
@@ -32,6 +34,7 @@ public class WebsocketGateway {
         String room = "showtimes:" + showtimeId;
         Map<String, Object> payload = Map.of("showtimeId", showtimeId, "seatIds", seatIds);
         namespace.getRoomOperations(room).sendEvent(type, payload);
+        System.out.println("📢 Đã phát lệnh " + type + " tới phòng " + room + ". Ghế: " + seatIds);
     }
 
     @Data
