@@ -26,7 +26,13 @@ public class Cinema extends BaseEntity {
     @Column(nullable = false)
     private String city;
 
+    private String ward;
+
     private String district;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "province_new_id")
+    private ProvinceNew provinceNew;
     private String phone;
     private String email;
 

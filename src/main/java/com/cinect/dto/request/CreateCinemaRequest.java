@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class CreateCinemaRequest {
@@ -15,6 +16,8 @@ public class CreateCinemaRequest {
     private String address;
     @NotBlank
     private String city;
+    private String ward;
+    private UUID provinceNewId;
     private String district;
     private String phone;
     private String email;
