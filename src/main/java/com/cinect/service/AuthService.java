@@ -4,7 +4,6 @@ import com.cinect.dto.request.*;
 import com.cinect.dto.response.AuthResponse;
 import com.cinect.dto.response.UserResponse;
 import com.cinect.entity.Membership;
-import com.cinect.entity.MembershipTier;
 import com.cinect.entity.User;
 import com.cinect.entity.enums.UserRole;
 import com.cinect.exception.BadRequestException;
@@ -31,7 +30,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -51,7 +49,13 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest req) {
-        if (userRepository.existsByEmail(req.getEmail())) {
+        String normalizedEmail = req.getEmail().trim().toLowerCase();
+
+        if (!req.getPassword().equals(req.getConfirmPassword())) {
+            throw new BadRequestException("Confirm password does not match password");
+        }
+
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new BadRequestException("Email already registered");
         }
         var userRole = roleRepository.findByName(UserRole.USER)
@@ -62,10 +66,10 @@ public class AuthService {
                         .orElseThrow(() -> new ResourceNotFoundException("No membership tier found")));
 
         var user = User.builder()
-                .email(req.getEmail())
+            .email(normalizedEmail)
                 .passwordHash(passwordEncoder.encode(req.getPassword()))
-                .fullName(req.getFullName())
-                .phone(req.getPhone())
+            .fullName(req.getFullName().trim())
+            .phone(req.getPhone().trim())
                 .isActive(true)
                 .emailVerified(false)
                 .roles(new HashSet<>(Set.of(userRole)))
@@ -86,15 +90,20 @@ public class AuthService {
         user.setRefreshToken(refreshToken);
         userRepository.save(user);
 
+        var persistedUser = userRepository.findById(user.getId())
+            .orElse(user);
+
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
-                .user(toUserResponse(user))
+            .user(toUserResponse(persistedUser))
                 .build();
     }
 
     public AuthResponse login(LoginRequest req) {
-        var user = userRepository.findByEmail(req.getEmail())
+        String normalizedEmail = req.getEmail().trim().toLowerCase();
+
+        var user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new BadRequestException("Invalid credentials"));
         if (!user.getIsActive()) {
             throw new BadRequestException("Account is deactivated");
@@ -103,7 +112,7 @@ public class AuthService {
             throw new BadRequestException("This account uses social login. Please sign in with your social provider.");
         }
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
+            new UsernamePasswordAuthenticationToken(normalizedEmail, req.getPassword()));
         var role = RoleUtil.pickPrimaryRoleName(user.getRoles());
         var accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), role);
         var refreshToken = jwtService.generateRefreshToken(user.getId());
