@@ -279,6 +279,7 @@ public class RoomService {
         return SeatResponse.builder()
                 .id(s.getId())
                 .roomId(s.getRoom().getId())
+                .row(s.getRowLabel())
                 .rowLabel(s.getRowLabel())
                 .number(s.getNumber())
                 .type(s.getType())
