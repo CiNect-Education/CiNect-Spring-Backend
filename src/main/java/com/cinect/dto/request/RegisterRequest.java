@@ -7,8 +7,8 @@ import lombok.*;
 public class RegisterRequest {
     @NotBlank(message = "Email is required")
     @Pattern(
-        regexp = "^[A-Za-z0-9]+@gmail\\.com$",
-        message = "Email must be in ten@gmail.com format and contain no special characters"
+        regexp = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$",
+        message = "Email format is invalid"
     )
     private String email;
 
