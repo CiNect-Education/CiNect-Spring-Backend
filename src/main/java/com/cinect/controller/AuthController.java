@@ -4,10 +4,6 @@ import com.cinect.dto.request.LoginRequest;
 import com.cinect.dto.request.RefreshTokenRequest;
 import com.cinect.dto.request.RegisterRequest;
 import com.cinect.dto.request.ForgotPasswordRequest;
-import com.cinect.dto.request.ResetPasswordRequest;
-import com.cinect.dto.request.UpdateProfileRequest;
-import com.cinect.dto.response.ApiResponse;
-import com.cinect.dto.response.AuthResponse;
 import com.cinect.dto.response.UserResponse;
 import com.cinect.security.UserPrincipal;
 import com.cinect.service.AuthService;
@@ -16,6 +12,10 @@ import com.cinect.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import com.cinect.dto.request.ResetPasswordRequest;
+import com.cinect.dto.request.UpdateProfileRequest;
+import com.cinect.dto.response.ApiResponse;
+import com.cinect.dto.response.AuthResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -38,15 +38,15 @@ public class AuthController {
     @Value("${oauth.frontend-url:http://localhost:3000}")
     private String frontendUrl;
 
-    @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest req) {
-        var data = authService.register(req);
-        return ResponseEntity.ok(ApiResponse.success(data));
-    }
-
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest req) {
         var data = authService.login(req);
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest req) {
+        var data = authService.register(req);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -89,22 +89,6 @@ public class AuthController {
     }
 
     // ========================
-    // OAuth: Google
-    // ========================
-
-    @GetMapping("/google")
-    public void googleLogin(HttpServletResponse response) throws IOException {
-        response.sendRedirect(oAuthService.getGoogleAuthUrl());
-    }
-
-    @GetMapping("/google/callback")
-    public void googleCallback(@RequestParam("code") String code, HttpServletResponse response) throws IOException {
-        var profile = oAuthService.getGoogleUserProfile(code);
-        var result = authService.findOrCreateOAuthUser(profile);
-        redirectWithTokens(response, result);
-    }
-
-    // ========================
     // OAuth: Facebook
     // ========================
 
@@ -132,6 +116,22 @@ public class AuthController {
     @GetMapping("/github/callback")
     public void githubCallback(@RequestParam("code") String code, HttpServletResponse response) throws IOException {
         var profile = oAuthService.getGithubUserProfile(code);
+        var result = authService.findOrCreateOAuthUser(profile);
+        redirectWithTokens(response, result);
+    }
+
+    // ========================
+    // OAuth: Google
+    // ========================
+
+    @GetMapping("/google")
+    public void googleLogin(HttpServletResponse response) throws IOException {
+        response.sendRedirect(oAuthService.getGoogleAuthUrl());
+    }
+
+    @GetMapping("/google/callback")
+    public void googleCallback(@RequestParam("code") String code, HttpServletResponse response) throws IOException {
+        var profile = oAuthService.getGoogleUserProfile(code);
         var result = authService.findOrCreateOAuthUser(profile);
         redirectWithTokens(response, result);
     }
