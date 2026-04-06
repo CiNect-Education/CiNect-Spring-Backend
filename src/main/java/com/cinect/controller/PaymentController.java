@@ -30,10 +30,19 @@ public class PaymentController {
     }
 
     @PostMapping("/callback")
-    public ResponseEntity<ApiResponse<Void>> callback(@RequestBody Map<String, Object> body) {
-        var transactionId = (String) body.get("transactionId");
-        var success = body.get("success") instanceof Boolean b ? b : false;
-        paymentService.handleCallback(transactionId, success);
+    public ResponseEntity<ApiResponse<Void>> callback(
+            @RequestBody(required = false) Map<String, Object> body,
+            @RequestParam(required = false) String transactionId,
+            @RequestParam(required = false) Boolean success) {
+        var tx = transactionId;
+        if ((tx == null || tx.isBlank()) && body != null) {
+            tx = body.get("transactionId") instanceof String s ? s : null;
+        }
+        var ok = success != null && success;
+        if (body != null && body.get("success") instanceof Boolean b) {
+            ok = b;
+        }
+        paymentService.handleCallback(tx, ok);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 

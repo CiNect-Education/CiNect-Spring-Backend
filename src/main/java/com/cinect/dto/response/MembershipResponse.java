@@ -19,6 +19,8 @@ public class MembershipResponse {
     private Integer totalPoints;
     private MembershipTierResponse nextTier;
     private Integer pointsToNextTier;
+    private Integer dailyCheckinStreak;
+    private Instant lastDailyCheckinAt;
     private Instant memberSince;
     private Instant expiresAt;
 }

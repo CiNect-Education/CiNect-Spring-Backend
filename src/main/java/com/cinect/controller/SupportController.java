@@ -1,7 +1,9 @@
 package com.cinect.controller;
 
 import com.cinect.dto.request.ContactFormRequest;
+import com.cinect.dto.request.ChatbotRequest;
 import com.cinect.dto.response.ApiResponse;
+import com.cinect.dto.response.ChatbotResponse;
 import com.cinect.security.UserPrincipal;
 import com.cinect.service.SupportService;
 import jakarta.validation.Valid;
@@ -33,5 +35,10 @@ public class SupportController {
         var userId = principal != null ? principal.getId() : null;
         supportService.createTicket(req, userId);
         return ResponseEntity.ok(ApiResponse.success(null, "Ticket submitted successfully"));
+    }
+
+    @PostMapping("/chatbot")
+    public ResponseEntity<ChatbotResponse> chatbot(@Valid @RequestBody ChatbotRequest req) {
+        return ResponseEntity.ok(supportService.chatbot(req));
     }
 }

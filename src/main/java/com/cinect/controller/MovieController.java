@@ -20,6 +20,7 @@ import com.cinect.dto.response.PageMeta;
 import com.cinect.dto.response.ReviewResponse;
 import com.cinect.dto.response.ShowtimeResponse;
 import com.cinect.entity.enums.MovieStatus;
+import com.cinect.entity.enums.AgeRating;
 import com.cinect.security.UserPrincipal;
 import com.cinect.service.MovieService;
 import com.cinect.service.ReviewService;
@@ -43,11 +44,19 @@ public class MovieController {
     public ResponseEntity<ApiResponse<List<MovieResponse>>> findAll(
             @RequestParam(required = false) MovieStatus status,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) UUID genreId,
+            @RequestParam(required = false) String genre,
+            @RequestParam(required = false) String language,
+            @RequestParam(required = false) AgeRating ageRating,
+            @RequestParam(required = false) Integer durationMin,
+            @RequestParam(required = false) Integer durationMax,
+            @RequestParam(required = false) String format,
+            @RequestParam(required = false, defaultValue = "releaseDate:desc") String sort,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int limit) {
         int pageIndex = Math.max(0, page - 1);
-        var data = movieService.findAll(status, search, genreId, pageIndex, limit);
+        var data = movieService.findAll(
+                status, search, genre, language, ageRating, durationMin, durationMax, format, sort, pageIndex, limit
+        );
         var meta = PageMeta.builder()
                 .page(page)
                 .limit(limit)

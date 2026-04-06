@@ -48,6 +48,7 @@ Cinema booking platform backend built with Spring Boot 3.x, Java 21, PostgreSQL,
 | `JWT_REFRESH_EXP`  | Refresh token expiry (ms)          | `604800000` (7 days)                                 |
 | `CORS_ORIGINS`     | Allowed CORS origins               | `http://localhost:3000`                              |
 | `PORT`             | Server port                        | `8081`                                               |
+| `FLYWAY_ENABLED`   | Auto-run Flyway migrations on startup | `false`                                           |
 | `HOLD_TTL`         | Seat hold TTL (minutes)            | `10`                                                 |
 | `PAYMENT_TIMEOUT`  | Payment timeout (minutes)          | `2`                                                  |
 | `POINTS_PER_BOOKING` | Loyalty points per booking      | `10`                                                 |
@@ -58,6 +59,12 @@ Cinema booking platform backend built with Spring Boot 3.x, Java 21, PostgreSQL,
 **Development:**
 ```bash
 mvn spring-boot:run
+```
+
+To auto-apply migrations (recommended for CI/staging/prod):
+
+```bash
+FLYWAY_ENABLED=true mvn spring-boot:run
 ```
 
 **Tests:**

@@ -5,6 +5,7 @@ import com.cinect.dto.request.UpdateMovieRequest;
 import com.cinect.dto.response.MovieResponse;
 import com.cinect.entity.Genre;
 import com.cinect.entity.Movie;
+import com.cinect.entity.enums.AgeRating;
 import com.cinect.entity.enums.MovieStatus;
 import com.cinect.exception.BadRequestException;
 import com.cinect.exception.ResourceNotFoundException;
@@ -20,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Comparator;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -34,32 +37,94 @@ public class MovieService {
     /** Unpaged admin list (Nest-compatible; avoids default page size 20). */
     @Transactional(readOnly = true)
     public List<MovieResponse> findAllForAdmin() {
-        return findAll(null, null, null, 0, 50_000).getContent();
+        return findAll(null, null, null, null, null, null, null, null, "releaseDate:desc", 0, 50_000).getContent();
     }
 
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<MovieResponse> findAll(MovieStatus status, String search, UUID genreId,
-                                                                       int page, int limit) {
-        Pageable pageable = PageRequest.of(page, limit, Sort.by("releaseDate").descending());
-        Page<Movie> pageResult;
-        String trimmedSearch = (search != null && !search.isBlank()) ? search.trim() : null;
-        if (genreId != null) {
-            pageResult = movieRepository.findByGenre(genreId, pageable);
-        } else if (status != null && trimmedSearch != null) {
-            pageResult = movieRepository.findAllByStatusAndSearch(status, trimmedSearch, pageable);
-        } else if (status != null) {
-            pageResult = movieRepository.findAllByStatus(status, pageable);
-        } else if (trimmedSearch != null) {
-            pageResult = movieRepository.findAllBySearch(trimmedSearch, pageable);
-        } else {
-            pageResult = movieRepository.findAllActive(pageable);
-        }
-        return pageResult.map(this::toResponse);
+    public org.springframework.data.domain.Page<MovieResponse> findAll(
+            MovieStatus status,
+            String search,
+            String genre,
+            String language,
+            AgeRating ageRating,
+            Integer durationMin,
+            Integer durationMax,
+            String format,
+            String sort,
+            int page,
+            int limit
+    ) {
+        int safeLimit = Math.max(1, limit);
+        int safePage = Math.max(0, page);
+        String trimmedSearch = (search != null && !search.isBlank()) ? search.trim().toLowerCase(Locale.ROOT) : null;
+        String trimmedGenre = (genre != null && !genre.isBlank()) ? genre.trim().toLowerCase(Locale.ROOT) : null;
+        String trimmedLanguage = (language != null && !language.isBlank()) ? language.trim().toLowerCase(Locale.ROOT) : null;
+        String trimmedFormat = (format != null && !format.isBlank()) ? format.trim().toLowerCase(Locale.ROOT) : null;
+
+        var allMovies = movieRepository.findAllActive(PageRequest.of(0, 10_000, Sort.by("releaseDate").descending())).getContent();
+
+        Comparator<Movie> comparator = parseSort(sort);
+        var filtered = allMovies.stream()
+                .filter(m -> status == null || m.getStatus() == status)
+                .filter(m -> trimmedSearch == null
+                        || (m.getTitle() != null && m.getTitle().toLowerCase(Locale.ROOT).contains(trimmedSearch))
+                        || (m.getOriginalTitle() != null && m.getOriginalTitle().toLowerCase(Locale.ROOT).contains(trimmedSearch)))
+                .filter(m -> trimmedGenre == null || m.getGenres().stream().anyMatch(g ->
+                        (g.getSlug() != null && g.getSlug().toLowerCase(Locale.ROOT).contains(trimmedGenre))
+                                || (g.getName() != null && g.getName().toLowerCase(Locale.ROOT).contains(trimmedGenre))
+                                || g.getId().toString().equalsIgnoreCase(trimmedGenre)))
+                .filter(m -> trimmedLanguage == null || (m.getLanguage() != null
+                        && m.getLanguage().toLowerCase(Locale.ROOT).contains(trimmedLanguage)))
+                .filter(m -> ageRating == null || m.getAgeRating() == ageRating)
+                .filter(m -> durationMin == null || (m.getDuration() != null && m.getDuration() >= durationMin))
+                .filter(m -> durationMax == null || (m.getDuration() != null && m.getDuration() <= durationMax))
+                .filter(m -> trimmedFormat == null || (m.getFormats() != null
+                        && m.getFormats().stream().anyMatch(f -> f != null && f.toLowerCase(Locale.ROOT).equals(trimmedFormat))))
+                .sorted(comparator)
+                .toList();
+
+        int from = Math.min(filtered.size(), safePage * safeLimit);
+        int to = Math.min(filtered.size(), from + safeLimit);
+        var pageItems = filtered.subList(from, to).stream().map(this::toResponse).toList();
+        return new org.springframework.data.domain.PageImpl<>(
+                pageItems,
+                PageRequest.of(safePage, safeLimit),
+                filtered.size()
+        );
     }
 
+    private Comparator<Movie> parseSort(String sort) {
+        String value = (sort == null || sort.isBlank()) ? "releaseDate:desc" : sort.trim().toLowerCase(Locale.ROOT);
+        return switch (value) {
+            case "releasedate:asc" -> Comparator.comparing(Movie::getReleaseDate, Comparator.nullsLast(Comparator.naturalOrder()));
+            case "title:asc" -> Comparator.comparing(m -> safe(m.getTitle()));
+            case "title:desc" -> Comparator.comparing((Movie m) -> safe(m.getTitle())).reversed();
+            case "rating:asc" -> Comparator.comparing(m -> m.getRating() != null ? m.getRating() : java.math.BigDecimal.ZERO);
+            case "rating:desc" -> Comparator.comparing((Movie m) -> m.getRating() != null ? m.getRating() : java.math.BigDecimal.ZERO).reversed();
+            default -> Comparator.comparing(Movie::getReleaseDate, Comparator.nullsLast(Comparator.naturalOrder())).reversed();
+        };
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT);
+    }
+
+    @Transactional(readOnly = true)
     public MovieResponse findBySlug(String slug) {
-        var movie = movieRepository.findBySlugAndIsDeletedFalse(slug)
-                .orElseThrow(() -> new ResourceNotFoundException("Movie not found: " + slug));
+        Movie movie = null;
+        try {
+            UUID id = UUID.fromString(slug);
+            movie = movieRepository.findById(id)
+                    .filter(m -> !Boolean.TRUE.equals(m.getIsDeleted()))
+                    .orElse(null);
+        } catch (IllegalArgumentException ignored) {
+            // Not a UUID, continue with slug lookup.
+        }
+
+        if (movie == null) {
+            movie = movieRepository.findBySlugAndIsDeletedFalse(slug)
+                    .orElseThrow(() -> new ResourceNotFoundException("Movie not found: " + slug));
+        }
         return toResponse(movie);
     }
 

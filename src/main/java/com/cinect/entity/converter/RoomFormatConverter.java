@@ -14,6 +14,14 @@ public class RoomFormatConverter implements AttributeConverter<RoomFormat, Strin
 
     @Override
     public RoomFormat convertToEntityAttribute(String dbData) {
-        return dbData != null ? RoomFormat.fromValue(dbData) : null;
+        if (dbData == null || dbData.isBlank()) {
+            return null;
+        }
+        try {
+            return RoomFormat.fromValue(dbData);
+        } catch (IllegalArgumentException ex) {
+            // Bad legacy/seed values must not break entire admin list endpoints.
+            return null;
+        }
     }
 }

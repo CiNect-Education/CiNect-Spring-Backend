@@ -6,11 +6,11 @@ import com.cinect.dto.response.SeatMapResponse;
 import com.cinect.dto.response.SeatResponse;
 import com.cinect.dto.response.ShowtimeResponse;
 import com.cinect.entity.*;
+import com.cinect.entity.enums.RoomFormat;
 import com.cinect.exception.BadRequestException;
 import com.cinect.exception.ConflictException;
 import com.cinect.exception.ResourceNotFoundException;
 import com.cinect.repository.*;
-import com.cinect.util.BookingCityResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,12 +31,19 @@ public class ShowtimeService {
     private final SeatRepository seatRepository;
     private final BookingItemRepository bookingItemRepository;
     private final HoldSeatRepository holdSeatRepository;
+    private final ProvinceService provinceService;
 
     public List<ShowtimeResponse> findFiltered(UUID movieId, UUID cinemaId, String city, Instant startFrom, Instant startTo) {
+        return findFiltered(movieId, cinemaId, city, null, startFrom, startTo);
+    }
+
+    public List<ShowtimeResponse> findFiltered(UUID movieId, UUID cinemaId, String city, RoomFormat format, Instant startFrom, Instant startTo) {
         var from = startFrom != null ? startFrom : Instant.now();
         var to = startTo != null ? startTo : from.plus(Duration.ofDays(7));
-        String provinceCode = cinemaId != null ? null : BookingCityResolver.resolveCinemaProvinceCode(city);
-        var list = showtimeRepository.findFiltered(movieId, cinemaId, provinceCode, from, to);
+        String provinceCode = cinemaId != null ? null : provinceService.resolveToNewCode(city);
+        var list = (format == null)
+                ? showtimeRepository.findFilteredNoFormat(movieId, cinemaId, provinceCode, from, to)
+                : showtimeRepository.findFiltered(movieId, cinemaId, provinceCode, format, from, to);
         return list.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
@@ -49,7 +56,11 @@ public class ShowtimeService {
             startFrom = localDate.atStartOfDay(zone).toInstant();
             startTo = localDate.plusDays(1).atStartOfDay(zone).toInstant();
         }
-        return findFiltered(movieId, cinemaId, city, startFrom, startTo);
+        RoomFormat roomFormat = null;
+        if (format != null && !format.isBlank()) {
+            roomFormat = RoomFormat.fromValue(format.strip());
+        }
+        return findFiltered(movieId, cinemaId, city, roomFormat, startFrom, startTo);
     }
 
     public ShowtimeResponse findById(UUID id) {

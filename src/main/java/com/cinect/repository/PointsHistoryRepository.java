@@ -7,8 +7,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.UUID;
+import java.time.Instant;
+import com.cinect.entity.enums.PointsTxType;
+import java.util.Optional;
 
 @Repository
 public interface PointsHistoryRepository extends JpaRepository<PointsHistory, UUID> {
     Page<PointsHistory> findByUser_IdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    Optional<PointsHistory> findTopByUser_IdAndTypeAndDescriptionStartingWithAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+            UUID userId, PointsTxType type, String descriptionPrefix, Instant createdAt);
 }
