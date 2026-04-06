@@ -35,8 +35,9 @@ public class MembershipService {
     private final BookingRepository bookingRepository;
     private final ShowtimeRepository showtimeRepository;
 
+    @Transactional(readOnly = true)
     public MembershipResponse getProfile(UUID userId) {
-        var m = membershipRepository.findByUserId(userId)
+        var m = membershipRepository.findProfileByUserId(userId)
                 .orElse(null);
         if (m == null) return null;
         return toResponse(m);
