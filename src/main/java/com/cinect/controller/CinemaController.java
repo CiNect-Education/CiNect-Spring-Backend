@@ -57,7 +57,7 @@ public class CinemaController {
             @PathVariable UUID id,
             @RequestParam(required = false) Instant startFrom,
             @RequestParam(required = false) Instant startTo) {
-        var data = showtimeService.findFiltered(null, id, startFrom, startTo);
+        var data = showtimeService.findFiltered(null, id, null, startFrom, startTo);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 }

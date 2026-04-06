@@ -431,7 +431,7 @@ public class AdminController {
     public ResponseEntity<ApiResponse<List<ShowtimeResponse>>> listShowtimes(
             @RequestParam(required = false) UUID movieId,
             @RequestParam(required = false) UUID cinemaId) {
-        var data = showtimeService.findFiltered(movieId, cinemaId, null, null);
+        var data = showtimeService.findFiltered(movieId, cinemaId, null, null, null);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 

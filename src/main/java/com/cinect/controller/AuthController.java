@@ -82,7 +82,7 @@ public class AuthController {
 
     @PutMapping("/profile")
     public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
-            @RequestBody UpdateProfileRequest req,
+            @Valid @RequestBody UpdateProfileRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         var data = userService.updateProfile(principal.getId(), req);
         return ResponseEntity.ok(ApiResponse.success(data));

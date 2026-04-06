@@ -13,6 +13,9 @@ public class CinemaResponse {
     private String slug;
     private String address;
     private String city;
+    private String ward;
+    /** provinces_new.code when linked */
+    private String provinceCode;
     private String district;
     private String phone;
     private String email;

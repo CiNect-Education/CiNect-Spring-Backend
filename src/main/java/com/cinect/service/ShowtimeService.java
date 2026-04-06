@@ -10,6 +10,7 @@ import com.cinect.exception.BadRequestException;
 import com.cinect.exception.ConflictException;
 import com.cinect.exception.ResourceNotFoundException;
 import com.cinect.repository.*;
+import com.cinect.util.BookingCityResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,26 +32,28 @@ public class ShowtimeService {
     private final BookingItemRepository bookingItemRepository;
     private final HoldSeatRepository holdSeatRepository;
 
-    public List<ShowtimeResponse> findFiltered(UUID movieId, UUID cinemaId, Instant startFrom, Instant startTo) {
+    public List<ShowtimeResponse> findFiltered(UUID movieId, UUID cinemaId, String city, Instant startFrom, Instant startTo) {
         var from = startFrom != null ? startFrom : Instant.now();
         var to = startTo != null ? startTo : from.plus(Duration.ofDays(7));
-        var list = showtimeRepository.findFiltered(movieId, cinemaId, from, to);
+        String provinceCode = cinemaId != null ? null : BookingCityResolver.resolveCinemaProvinceCode(city);
+        var list = showtimeRepository.findFiltered(movieId, cinemaId, provinceCode, from, to);
         return list.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
-    public List<ShowtimeResponse> search(UUID movieId, UUID cinemaId, String date, String format) {
+    public List<ShowtimeResponse> search(UUID movieId, UUID cinemaId, String date, String format, String city) {
         Instant startFrom = null;
         Instant startTo = null;
         if (date != null && !date.isEmpty()) {
-            var localDate = java.time.LocalDate.parse(date);
-            startFrom = localDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
-            startTo = localDate.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
+            var localDate = java.time.LocalDate.parse(date.strip());
+            var zone = java.time.ZoneId.systemDefault();
+            startFrom = localDate.atStartOfDay(zone).toInstant();
+            startTo = localDate.plusDays(1).atStartOfDay(zone).toInstant();
         }
-        return findFiltered(movieId, cinemaId, startFrom, startTo);
+        return findFiltered(movieId, cinemaId, city, startFrom, startTo);
     }
 
     public ShowtimeResponse findById(UUID id) {
-        var st = showtimeRepository.findById(id)
+        var st = showtimeRepository.findDetailById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Showtime not found"));
         return toResponse(st);
     }
@@ -132,7 +135,7 @@ public class ShowtimeService {
     }
 
     public SeatMapResponse getSeatMap(UUID showtimeId) {
-        var showtime = showtimeRepository.findById(showtimeId)
+        var showtime = showtimeRepository.findDetailById(showtimeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Showtime not found"));
         var seats = seatRepository.findByRoomId(showtime.getRoom().getId());
         var bookedIds = new HashSet<>(bookingItemRepository.findBookedSeatIds(showtimeId));
