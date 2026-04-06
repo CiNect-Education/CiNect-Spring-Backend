@@ -53,7 +53,7 @@ public class ShowtimeService {
     }
 
     public ShowtimeResponse findById(UUID id) {
-        var st = showtimeRepository.findById(id)
+        var st = showtimeRepository.findDetailById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Showtime not found"));
         return toResponse(st);
     }
@@ -135,7 +135,7 @@ public class ShowtimeService {
     }
 
     public SeatMapResponse getSeatMap(UUID showtimeId) {
-        var showtime = showtimeRepository.findById(showtimeId)
+        var showtime = showtimeRepository.findDetailById(showtimeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Showtime not found"));
         var seats = seatRepository.findByRoomId(showtime.getRoom().getId());
         var bookedIds = new HashSet<>(bookingItemRepository.findBookedSeatIds(showtimeId));
