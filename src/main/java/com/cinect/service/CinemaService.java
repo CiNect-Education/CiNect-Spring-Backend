@@ -11,7 +11,6 @@ import com.cinect.exception.ResourceNotFoundException;
 import com.cinect.entity.ProvinceNew;
 import com.cinect.repository.CinemaRepository;
 import com.cinect.repository.ProvinceNewRepository;
-import com.cinect.util.BookingCityResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,6 +29,7 @@ public class CinemaService {
 
     private final CinemaRepository cinemaRepository;
     private final ProvinceNewRepository provinceNewRepository;
+    private final ProvinceService provinceService;
 
     /** Full list with nested rooms for admin UI (Nest-compatible). */
     @Transactional(readOnly = true)
@@ -42,7 +42,7 @@ public class CinemaService {
     @Transactional(readOnly = true)
     public Page<CinemaResponse> findAll(String city, String search, int page, int limit) {
         Pageable pageable = PageRequest.of(page, limit, Sort.by("name"));
-        String provinceCode = BookingCityResolver.resolveCinemaProvinceCode(city);
+        String provinceCode = provinceService.resolveToNewCode(city);
         String trimmedSearch = (search != null && !search.isBlank()) ? search.trim() : null;
         Page<Cinema> pageResult;
         if (provinceCode != null && trimmedSearch != null) {
@@ -57,9 +57,19 @@ public class CinemaService {
         return pageResult.map(this::toResponse);
     }
 
-    public CinemaResponse findBySlug(String slug) {
-        var cinema = cinemaRepository.findBySlugAndIsActiveTrue(slug)
-                .orElseThrow(() -> new ResourceNotFoundException("Cinema not found: " + slug));
+    @Transactional(readOnly = true)
+    public CinemaResponse findBySlug(String slugOrId) {
+        Cinema cinema = null;
+        try {
+            var id = UUID.fromString(slugOrId);
+            cinema = cinemaRepository.findByIdAndIsActiveTrue(id).orElse(null);
+        } catch (IllegalArgumentException ignored) {
+            // not a UUID; resolve as slug below
+        }
+        if (cinema == null) {
+            cinema = cinemaRepository.findBySlugAndIsActiveTrue(slugOrId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Cinema not found: " + slugOrId));
+        }
         return toResponse(cinema);
     }
 
@@ -72,6 +82,11 @@ public class CinemaService {
         if (req.getProvinceNewId() != null) {
             province = provinceNewRepository.findById(req.getProvinceNewId())
                     .orElseThrow(() -> new BadRequestException("Invalid provinceNewId"));
+        } else {
+            String resolvedCode = provinceService.resolveToNewCode(req.getCity());
+            if (resolvedCode != null) {
+                province = provinceNewRepository.findByCode(resolvedCode).orElse(null);
+            }
         }
         var cinema = Cinema.builder()
                 .name(req.getName())
@@ -106,6 +121,9 @@ public class CinemaService {
             var p = provinceNewRepository.findById(req.getProvinceNewId())
                     .orElseThrow(() -> new BadRequestException("Invalid provinceNewId"));
             cinema.setProvinceNew(p);
+        } else if (req.getCity() != null) {
+            String resolvedCode = provinceService.resolveToNewCode(req.getCity());
+            cinema.setProvinceNew(resolvedCode != null ? provinceNewRepository.findByCode(resolvedCode).orElse(null) : null);
         }
         if (req.getDistrict() != null) cinema.setDistrict(req.getDistrict());
         if (req.getPhone() != null) cinema.setPhone(req.getPhone());

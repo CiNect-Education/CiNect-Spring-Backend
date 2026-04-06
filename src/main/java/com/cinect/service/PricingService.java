@@ -29,7 +29,7 @@ public class PricingService {
         var rules = pricingRuleRepository.findMatchingRules(
                 cinemaId,
                 seat.getType(),
-                showtime.getFormat(),
+                showtime.getFormat() != null ? showtime.getFormat().getValue() : null,
                 resolveDayType(showtime.getStartTime()),
                 resolveTimeSlot(showtime.getStartTime()));
         if (rules.isEmpty()) {

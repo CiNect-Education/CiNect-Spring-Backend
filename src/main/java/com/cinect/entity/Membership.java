@@ -27,6 +27,13 @@ public class Membership extends BaseEntity {
     @Builder.Default
     private Integer totalPoints = 0;
 
+    @Column(name = "daily_checkin_streak", nullable = false)
+    @Builder.Default
+    private Integer dailyCheckinStreak = 0;
+
+    @Column(name = "last_daily_checkin_at")
+    private Instant lastDailyCheckinAt;
+
     @Column(name = "member_since", nullable = false)
     @Builder.Default
     private Instant memberSince = Instant.now();

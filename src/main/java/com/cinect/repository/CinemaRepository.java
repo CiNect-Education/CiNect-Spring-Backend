@@ -20,6 +20,10 @@ public interface CinemaRepository extends JpaRepository<Cinema, UUID> {
     Optional<Cinema> findBySlugAndIsActiveTrue(@Param("slug") String slug);
 
     @EntityGraph(attributePaths = {"provinceNew"})
+    @Query("SELECT c FROM Cinema c WHERE c.id = :id AND c.isActive = true")
+    Optional<Cinema> findByIdAndIsActiveTrue(@Param("id") UUID id);
+
+    @EntityGraph(attributePaths = {"provinceNew"})
     @Query("SELECT c FROM Cinema c WHERE c.isActive = true")
     Page<Cinema> findAllActive(Pageable pageable);
 

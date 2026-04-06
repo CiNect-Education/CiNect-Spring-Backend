@@ -30,6 +30,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -349,7 +350,7 @@ public class AdminController {
         }
         int p = page != null ? page : 0;
         int l = limit != null ? limit : 20;
-        var data = movieService.findAll(status, search, null, p, l);
+        var data = movieService.findAll(status, search, null, null, null, null, null, null, "releaseDate:desc", p, l);
         var meta = PageMeta.builder()
                 .page(p)
                 .limit(l)
@@ -430,8 +431,9 @@ public class AdminController {
     @GetMapping("/showtimes")
     public ResponseEntity<ApiResponse<List<ShowtimeResponse>>> listShowtimes(
             @RequestParam(required = false) UUID movieId,
-            @RequestParam(required = false) UUID cinemaId) {
-        var data = showtimeService.findFiltered(movieId, cinemaId, null, null, null);
+            @RequestParam(required = false) UUID cinemaId,
+            @RequestParam(required = false) String date) {
+        var data = showtimeService.search(movieId, cinemaId, date, null, null);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -472,8 +474,14 @@ public class AdminController {
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int limit) {
-        var pageable = org.springframework.data.domain.PageRequest.of(page, limit);
-        var data = userRepository.searchUsers(search, pageable);
+        var pageable = org.springframework.data.domain.PageRequest.of(
+                page,
+                limit,
+                org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+        var data = (search == null || search.isBlank())
+                ? userRepository.findAll(pageable)
+                : userRepository.searchUsersByTerm(search.trim(), pageable);
         var meta = PageMeta.builder()
                 .page(page)
                 .limit(limit)
@@ -509,8 +517,21 @@ public class AdminController {
                 .map(p -> PromotionResponse.builder()
                         .id(p.getId())
                         .title(p.getTitle())
+                        .description(p.getDescription())
                         .code(p.getCode())
+                        .discountType(p.getDiscountType())
+                        .discountValue(p.getDiscountValue() != null ? p.getDiscountValue().doubleValue() : null)
+                        .minPurchase(p.getMinPurchase() != null ? p.getMinPurchase().doubleValue() : null)
+                        .maxDiscount(p.getMaxDiscount() != null ? p.getMaxDiscount().doubleValue() : null)
+                        .usageLimit(p.getUsageLimit())
+                        .usageCount(p.getUsageCount())
+                        .startDate(p.getStartDate())
+                        .endDate(p.getEndDate())
+                        .imageUrl(p.getImageUrl())
+                        .conditions(p.getConditions())
                         .status(p.getStatus())
+                        .isTrending(p.getIsTrending())
+                        .createdAt(p.getCreatedAt())
                         .build())
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(list));
@@ -541,14 +562,35 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success(rule));
     }
 
+    @GetMapping("/pricing-rules")
+    public ResponseEntity<ApiResponse<List<Object>>> listPricingRules() {
+        var rules = pricingRuleRepository.findAll();
+        var data = rules.stream().map(r -> {
+            var map = new LinkedHashMap<String, Object>();
+            map.put("id", r.getId());
+            map.put("seatType", r.getSeatType());
+            map.put("dayType", r.getDayType());
+            map.put("timeSlot", r.getTimeSlot());
+            map.put("roomFormat", r.getFormat() != null ? r.getFormat().name() : null);
+            map.put("price", r.getPrice());
+            map.put("isActive", r.getIsActive());
+            map.put("createdAt", r.getCreatedAt());
+            map.put("updatedAt", r.getUpdatedAt());
+            return (Object) map;
+        }).toList();
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
     @GetMapping("/audit-logs")
     public ResponseEntity<ApiResponse<List<AuditLog>>> listAuditLogs(
             @RequestParam(required = false) String entityType,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) String action,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int limit) {
-        var data = entityType != null
-                ? auditLogService.findByEntityType(entityType, page, limit)
-                : auditLogService.findAll(page, limit);
+        var data = auditLogService.findFiltered(entityType, search, from, to, action, page, limit);
         var meta = PageMeta.builder()
                 .page(page)
                 .limit(limit)
@@ -674,5 +716,29 @@ public class AdminController {
             return (Object) map;
         }).collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    @PutMapping("/roles/{id}")
+    public ResponseEntity<ApiResponse<Object>> updateRolePermissions(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Object> req) {
+        var role = roleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found"));
+        Object rawPermissions = req != null ? req.get("permissions") : null;
+        List<String> permissions = rawPermissions instanceof List<?> list
+                ? list.stream()
+                    .filter(v -> v != null)
+                    .map(v -> String.valueOf(v).trim())
+                    .filter(v -> !v.isBlank())
+                    .distinct()
+                    .toList()
+                : Collections.emptyList();
+        role.setPermissions(permissions);
+        roleRepository.save(role);
+        var map = new LinkedHashMap<String, Object>();
+        map.put("id", role.getId());
+        map.put("name", role.getName().name());
+        map.put("permissions", role.getPermissions());
+        return ResponseEntity.ok(ApiResponse.success((Object) map));
     }
 }
