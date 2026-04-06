@@ -21,14 +21,18 @@ public class UserService {
     public UserResponse updateProfile(UUID userId, UpdateProfileRequest req) {
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        if (req.getFullName() != null) user.setFullName(req.getFullName());
-        if (req.getPhone() != null) user.setPhone(req.getPhone());
-        if (req.getAvatar() != null) user.setAvatar(req.getAvatar());
+        if (req.getFullName() != null) user.setFullName(normalize(req.getFullName()));
+        if (req.getPhone() != null) user.setPhone(normalize(req.getPhone()));
+        if (req.getAvatar() != null) user.setAvatar(normalize(req.getAvatar()));
         if (req.getDateOfBirth() != null) user.setDateOfBirth(req.getDateOfBirth());
-        if (req.getGender() != null) user.setGender(req.getGender());
-        if (req.getCity() != null) user.setCity(req.getCity());
+        if (req.getGender() != null) user.setGender(normalize(req.getGender()));
+        if (req.getCity() != null) user.setCity(normalize(req.getCity()));
         user = userRepository.save(user);
         return toResponse(user);
+    }
+
+    private String normalize(String value) {
+        return value == null ? null : value.trim();
     }
 
     private UserResponse toResponse(User user) {
