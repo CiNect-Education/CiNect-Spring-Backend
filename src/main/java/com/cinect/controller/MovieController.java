@@ -29,14 +29,18 @@ public class MovieController {
     private final ReviewService reviewService;
     private final ShowtimeService showtimeService;
 
+    /**
+     * {@code page} is 1-based (same as NestJS {@code GET /movies}) — Spring Data uses 0-based internally.
+     */
     @GetMapping
     public ResponseEntity<ApiResponse<List<MovieResponse>>> findAll(
             @RequestParam(required = false) MovieStatus status,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) UUID genreId,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int limit) {
-        var data = movieService.findAll(status, search, genreId, page, limit);
+        int pageIndex = Math.max(0, page - 1);
+        var data = movieService.findAll(status, search, genreId, pageIndex, limit);
         var meta = PageMeta.builder()
                 .page(page)
                 .limit(limit)
@@ -54,12 +58,14 @@ public class MovieController {
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
+    /** {@code page} is 1-based (Nest-compatible). */
     @GetMapping("/{id}/reviews")
     public ResponseEntity<ApiResponse<List<ReviewResponse>>> getReviews(
             @PathVariable UUID id,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int limit) {
-        var data = reviewService.getByMovie(id, page, limit);
+        int pageIndex = Math.max(0, page - 1);
+        var data = reviewService.getByMovie(id, pageIndex, limit);
         var meta = PageMeta.builder()
                 .page(page)
                 .limit(limit)
