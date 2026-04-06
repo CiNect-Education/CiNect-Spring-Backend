@@ -57,9 +57,25 @@ public class MovieService {
         return pageResult.map(this::toResponse);
     }
 
+    @Transactional(readOnly = true)
     public MovieResponse findBySlug(String slug) {
-        var movie = movieRepository.findBySlugAndIsDeletedFalse(slug)
-                .orElseThrow(() -> new ResourceNotFoundException("Movie not found: " + slug));
+        String key = slug != null ? slug.trim() : null;
+        if (key == null || key.isEmpty()) {
+            throw new ResourceNotFoundException("Movie not found");
+        }
+
+        try {
+            UUID movieId = UUID.fromString(key);
+            var movie = movieRepository.findById(movieId)
+                    .filter(m -> !Boolean.TRUE.equals(m.getIsDeleted()))
+                    .orElseThrow(() -> new ResourceNotFoundException("Movie not found: " + key));
+            return toResponse(movie);
+        } catch (IllegalArgumentException ignored) {
+            // Not a UUID, continue with slug lookup.
+        }
+
+        var movie = movieRepository.findBySlugAndIsDeletedFalse(key)
+                .orElseThrow(() -> new ResourceNotFoundException("Movie not found: " + key));
         return toResponse(movie);
     }
 
