@@ -4,15 +4,14 @@ import com.cinect.dto.response.MembershipResponse;
 import com.cinect.dto.response.MembershipTierResponse;
 import com.cinect.dto.response.ShowtimeResponse;
 import com.cinect.entity.Membership;
+import com.cinect.entity.MembershipTier;
 import com.cinect.entity.PointsHistory;
 import com.cinect.entity.enums.PointsTxType;
-import com.cinect.exception.ResourceNotFoundException;
 import com.cinect.repository.BookingRepository;
 import com.cinect.repository.MembershipRepository;
 import com.cinect.repository.MembershipTierRepository;
 import com.cinect.repository.PointsHistoryRepository;
 import com.cinect.repository.ShowtimeRepository;
-import com.cinect.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -21,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -32,7 +32,6 @@ public class MembershipService {
     private final MembershipRepository membershipRepository;
     private final MembershipTierRepository membershipTierRepository;
     private final PointsHistoryRepository pointsHistoryRepository;
-    private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
     private final ShowtimeRepository showtimeRepository;
 
@@ -121,20 +120,36 @@ public class MembershipService {
         ).collect(Collectors.toList());
     }
 
-    private MembershipResponse toResponse(Membership m) {
-        var t = m.getTier();
-        return MembershipResponse.builder()
-                .id(m.getId())
-                .userId(m.getUser().getId())
-                .tierId(t.getId())
-                .tierName(t.getName())
-                .tierLevel(t.getLevel())
-                .currentPoints(m.getCurrentPoints())
-                .totalPoints(m.getTotalPoints())
+    private MembershipTierResponse toTierResponse(MembershipTier t) {
+        return MembershipTierResponse.builder()
+                .id(t.getId())
+                .name(t.getName())
+                .level(t.getLevel())
                 .pointsRequired(t.getPointsRequired())
                 .benefits(t.getBenefits())
                 .discountPercent(t.getDiscountPercent())
                 .color(t.getColor())
+                .icon(t.getIcon())
+                .build();
+    }
+
+    private MembershipResponse toResponse(Membership m) {
+        var t = m.getTier();
+        var nextTier = membershipTierRepository.findAll().stream()
+                .filter(x -> x.getLevel() > t.getLevel())
+                .min(Comparator.comparing(MembershipTier::getLevel))
+                .orElse(null);
+        Integer pointsToNext = null;
+        if (nextTier != null) {
+            pointsToNext = Math.max(0, nextTier.getPointsRequired() - m.getCurrentPoints());
+        }
+        return MembershipResponse.builder()
+                .userId(m.getUser().getId())
+                .tier(toTierResponse(t))
+                .currentPoints(m.getCurrentPoints())
+                .totalPoints(m.getTotalPoints())
+                .nextTier(nextTier != null ? toTierResponse(nextTier) : null)
+                .pointsToNextTier(pointsToNext)
                 .memberSince(m.getMemberSince())
                 .expiresAt(m.getExpiresAt())
                 .build();

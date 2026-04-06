@@ -10,21 +10,35 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface ShowtimeRepository extends JpaRepository<Showtime, UUID> {
 
-    @Query("SELECT s FROM Showtime s WHERE s.isActive = true " +
+    @Query("SELECT s FROM Showtime s " +
+           "JOIN FETCH s.movie " +
+           "JOIN FETCH s.room " +
+           "JOIN FETCH s.cinema " +
+           "WHERE s.isActive = true " +
            "AND (:movieId IS NULL OR s.movie.id = :movieId) " +
            "AND (:cinemaId IS NULL OR s.cinema.id = :cinemaId) " +
+           "AND (:provinceCode IS NULL OR s.cinema.provinceNew.code = :provinceCode) " +
            "AND s.startTime >= :startFrom " +
            "AND s.startTime < :startTo " +
            "ORDER BY s.startTime")
     List<Showtime> findFiltered(@Param("movieId") UUID movieId,
                                 @Param("cinemaId") UUID cinemaId,
+                                @Param("provinceCode") String provinceCode,
                                 @Param("startFrom") Instant startFrom,
                                 @Param("startTo") Instant startTo);
+
+    @Query("SELECT s FROM Showtime s " +
+           "JOIN FETCH s.movie " +
+           "JOIN FETCH s.room " +
+           "JOIN FETCH s.cinema " +
+           "WHERE s.id = :id")
+    Optional<Showtime> findDetailById(@Param("id") UUID id);
 
     @Query("SELECT s FROM Showtime s WHERE s.isActive = true " +
            "AND s.movie.id = :movieId AND s.startTime >= :now ORDER BY s.startTime")

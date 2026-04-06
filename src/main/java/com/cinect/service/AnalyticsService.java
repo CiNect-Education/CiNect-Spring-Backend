@@ -170,7 +170,7 @@ public class AnalyticsService {
     }
 
     public Map<String, Object> getOccupancy(Instant from, Instant to) {
-        var showtimes = showtimeRepository.findFiltered(null, null, from, to);
+        var showtimes = showtimeRepository.findFiltered(null, null, null, from, to);
         if (showtimes.isEmpty()) {
             return Map.of("averageOccupancy", 0.0, "showtimeCount", 0, "details", List.of());
         }

@@ -2,6 +2,8 @@ package com.cinect.service;
 
 import com.cinect.dto.request.CreateHoldRequest;
 import com.cinect.dto.response.HoldResponse;
+import com.cinect.dto.response.HoldSeatLineResponse;
+import com.cinect.dto.response.HoldShowtimeSnippetResponse;
 import com.cinect.entity.Hold;
 import com.cinect.entity.HoldSeat;
 import com.cinect.entity.Seat;
@@ -20,13 +22,16 @@ import com.cinect.repository.UserRepository;
 import com.cinect.websocket.SeatWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -98,7 +103,8 @@ public class HoldService {
 
         seatWebSocketHandler.broadcastSeatEvent(req.getShowtimeId(), SeatWebSocketHandler.SEAT_HELD, req.getSeatIds());
 
-        return toResponse(hold);
+        var fullHold = holdRepository.findByIdWithShowtimeGraph(hold.getId()).orElse(hold);
+        return toCheckoutResponse(fullHold);
     }
 
     @Transactional
@@ -120,19 +126,19 @@ public class HoldService {
     public HoldResponse getActiveHold(UUID userId, UUID showtimeId) {
         var hold = holdRepository.findActiveByUserAndShowtime(userId, showtimeId, Instant.now())
                 .orElse(null);
-        return hold != null ? toResponse(hold) : null;
+        return hold != null ? toSummaryResponse(hold) : null;
     }
 
     public HoldResponse getHoldById(UUID holdId, UUID userId) {
-        var hold = holdRepository.findById(holdId)
+        var hold = holdRepository.findByIdWithShowtimeGraph(holdId)
                 .orElseThrow(() -> new ResourceNotFoundException("Hold not found"));
         if (!hold.getUser().getId().equals(userId)) {
             throw new BadRequestException("Not authorized to view this hold");
         }
-        return toResponse(hold);
+        return toCheckoutResponse(hold);
     }
 
-    private HoldResponse toResponse(Hold h) {
+    private HoldResponse toSummaryResponse(Hold h) {
         return HoldResponse.builder()
                 .id(h.getId())
                 .userId(h.getUser().getId())
@@ -141,6 +147,55 @@ public class HoldService {
                 .status(h.getStatus())
                 .expiresAt(h.getExpiresAt())
                 .createdAt(h.getCreatedAt())
+                .seats(null)
+                .showtime(null)
+                .build();
+    }
+
+    private HoldResponse toCheckoutResponse(Hold h) {
+        return HoldResponse.builder()
+                .id(h.getId())
+                .userId(h.getUser().getId())
+                .showtimeId(h.getShowtime().getId())
+                .seatIds(h.getSeatIds())
+                .status(h.getStatus())
+                .expiresAt(h.getExpiresAt())
+                .createdAt(h.getCreatedAt())
+                .seats(buildSeatLines(h))
+                .showtime(buildShowtimeSnippet(h.getShowtime()))
+                .build();
+    }
+
+    private List<HoldSeatLineResponse> buildSeatLines(Hold h) {
+        if (h.getSeatIds() == null || h.getSeatIds().isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, Seat> seatMap = seatRepository.findAllById(h.getSeatIds()).stream()
+                .collect(Collectors.toMap(Seat::getId, Function.identity()));
+        BigDecimal base = h.getShowtime().getBasePrice() != null
+                ? h.getShowtime().getBasePrice()
+                : BigDecimal.ZERO;
+        return h.getSeatIds().stream()
+                .map(seatMap::get)
+                .filter(Objects::nonNull)
+                .map(s -> HoldSeatLineResponse.builder()
+                        .id(s.getId())
+                        .row(s.getRowLabel())
+                        .number(s.getNumber())
+                        .type(s.getType() != null ? s.getType().name() : "STANDARD")
+                        .price(s.getPrice() != null ? s.getPrice() : base)
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    private HoldShowtimeSnippetResponse buildShowtimeSnippet(Showtime st) {
+        return HoldShowtimeSnippetResponse.builder()
+                .movieTitle(st.getMovie().getTitle())
+                .cinemaName(st.getCinema().getName())
+                .roomName(st.getRoom().getName())
+                .startTime(st.getStartTime())
+                .format(st.getFormat() != null ? st.getFormat().name() : null)
+                .cinemaId(st.getCinema().getId())
                 .build();
     }
 }

@@ -16,4 +16,7 @@ public class HoldResponse {
     private HoldStatus status;
     private Instant expiresAt;
     private Instant createdAt;
+    /** Seat lines for checkout UI (aligned with Nest). */
+    private List<HoldSeatLineResponse> seats;
+    private HoldShowtimeSnippetResponse showtime;
 }

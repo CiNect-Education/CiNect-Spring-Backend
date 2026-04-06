@@ -11,6 +11,8 @@ import java.util.UUID;
 public class SeatResponse {
     private UUID id;
     private UUID roomId;
+    /** Same as rowLabel; included for API parity with Nest / web client. */
+    private String row;
     private String rowLabel;
     private Integer number;
     private SeatType type;
