@@ -76,6 +76,14 @@ public class ShowtimeService {
 
     @Transactional
     public ShowtimeResponse create(CreateShowtimeRequest req) {
+        if (req.getStartTime() != null) {
+            // Prevent creating historical showtimes from admin UI.
+            // Allow small clock skew between client/server.
+            Instant minAllowed = Instant.now().minusSeconds(30);
+            if (req.getStartTime().isBefore(minAllowed)) {
+                throw new BadRequestException("Showtime startTime must be in the future");
+            }
+        }
         var movie = movieRepository.findById(req.getMovieId())
                 .orElseThrow(() -> new ResourceNotFoundException("Movie not found"));
         var room = roomRepository.findById(req.getRoomId())
@@ -86,7 +94,12 @@ public class ShowtimeService {
             throw new BadRequestException("Room does not belong to cinema");
         }
         var duration = movie.getDuration() != null ? movie.getDuration() : 120;
-        var endTime = req.getStartTime().plusSeconds(duration * 60L);
+        var endTime = req.getEndTime() != null
+                ? req.getEndTime()
+                : req.getStartTime().plusSeconds(duration * 60L);
+        if (endTime.isBefore(req.getStartTime()) || endTime.equals(req.getStartTime())) {
+            endTime = req.getStartTime().plusSeconds(duration * 60L);
+        }
         if (checkConflicts(room.getId(), req.getStartTime(), endTime, null)) {
             throw new ConflictException("Room has conflicting showtime");
         }
@@ -123,7 +136,13 @@ public class ShowtimeService {
             var cinema = cinemaRepository.findById(req.getCinemaId()).orElseThrow(() -> new ResourceNotFoundException("Cinema not found"));
             st.setCinema(cinema);
         }
-        if (req.getStartTime() != null) st.setStartTime(req.getStartTime());
+        if (req.getStartTime() != null) {
+            Instant minAllowed = Instant.now().minusSeconds(30);
+            if (req.getStartTime().isBefore(minAllowed)) {
+                throw new BadRequestException("Showtime startTime must be in the future");
+            }
+            st.setStartTime(req.getStartTime());
+        }
         if (req.getEndTime() != null) st.setEndTime(req.getEndTime());
         if (req.getBasePrice() != null) st.setBasePrice(req.getBasePrice());
         if (req.getFormat() != null) st.setFormat(req.getFormat());

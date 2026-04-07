@@ -60,6 +60,9 @@ public class AdminController {
     private final PasswordEncoder passwordEncoder;
     private final MembershipRepository membershipRepository;
     private final MembershipTierRepository membershipTierRepository;
+    private final NewsService newsService;
+    private final CampaignService campaignService;
+    private final BannerService bannerService;
 
     @GetMapping("/kpis")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getKpis(
@@ -259,6 +262,7 @@ public class AdminController {
                 .passwordHash(passwordEncoder.encode(req.getPassword()))
                 .fullName(req.getFullName())
                 .phone(req.getPhone())
+                .city(req.getCity() != null && !req.getCity().isBlank() ? req.getCity().trim() : null)
                 .isActive(true)
                 .emailVerified(false)
                 .roles(new HashSet<>(Set.of(role)))
@@ -740,5 +744,100 @@ public class AdminController {
         map.put("name", role.getName().name());
         map.put("permissions", role.getPermissions());
         return ResponseEntity.ok(ApiResponse.success((Object) map));
+    }
+
+    // ── News / Campaigns / Banners (ADMIN only; matches NestJS admin content APIs) ──
+
+    @GetMapping("/news")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<NewsResponse>>> listNewsAdmin(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "50") int limit) {
+        int pageIndex = Math.max(0, page - 1);
+        var data = newsService.findAllForAdmin(pageIndex, limit);
+        var meta = PageMeta.builder()
+                .page(page)
+                .limit(limit)
+                .total(data.getTotalElements())
+                .totalPages(data.getTotalPages())
+                .hasNext(data.hasNext())
+                .hasPrev(data.hasPrevious())
+                .build();
+        return ResponseEntity.ok(ApiResponse.success(data.getContent(), meta));
+    }
+
+    @PostMapping("/news")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<NewsResponse>> createNewsAdmin(@Valid @RequestBody AdminNewsRequest req) {
+        return ResponseEntity.ok(ApiResponse.success(newsService.createForAdmin(req)));
+    }
+
+    @PutMapping("/news/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<NewsResponse>> updateNewsAdmin(
+            @PathVariable UUID id,
+            @RequestBody AdminNewsPatchRequest req) {
+        return ResponseEntity.ok(ApiResponse.success(newsService.updateForAdmin(id, req)));
+    }
+
+    @DeleteMapping("/news/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteNewsAdmin(@PathVariable UUID id) {
+        newsService.deleteForAdmin(id);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @GetMapping("/campaigns")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<CampaignResponse>>> listCampaignsAdmin() {
+        return ResponseEntity.ok(ApiResponse.success(campaignService.findAllForAdmin()));
+    }
+
+    @PostMapping("/campaigns")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<CampaignResponse>> createCampaignAdmin(@Valid @RequestBody AdminCampaignRequest req) {
+        return ResponseEntity.ok(ApiResponse.success(campaignService.createForAdmin(req)));
+    }
+
+    @PutMapping("/campaigns/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<CampaignResponse>> updateCampaignAdmin(
+            @PathVariable UUID id,
+            @RequestBody AdminCampaignPatchRequest req) {
+        return ResponseEntity.ok(ApiResponse.success(campaignService.updateForAdmin(id, req)));
+    }
+
+    @DeleteMapping("/campaigns/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteCampaignAdmin(@PathVariable UUID id) {
+        campaignService.deactivateForAdmin(id);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @GetMapping("/banners")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<BannerResponse>>> listBannersAdmin() {
+        return ResponseEntity.ok(ApiResponse.success(bannerService.findAllForAdmin()));
+    }
+
+    @PostMapping("/banners")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<BannerResponse>> createBannerAdmin(@Valid @RequestBody AdminBannerRequest req) {
+        return ResponseEntity.ok(ApiResponse.success(bannerService.createForAdmin(req)));
+    }
+
+    @PutMapping("/banners/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<BannerResponse>> updateBannerAdmin(
+            @PathVariable UUID id,
+            @RequestBody AdminBannerPatchRequest req) {
+        return ResponseEntity.ok(ApiResponse.success(bannerService.updateForAdmin(id, req)));
+    }
+
+    @DeleteMapping("/banners/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteBannerAdmin(@PathVariable UUID id) {
+        bannerService.deleteForAdmin(id);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

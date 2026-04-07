@@ -26,7 +26,7 @@ public class PricingRule extends BaseEntity {
     private SeatType seatType;
 
     @Convert(converter = RoomFormatConverter.class)
-    @Column(columnDefinition = "room_format")
+    @Column(length = 16)
     private RoomFormat format;
 
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)

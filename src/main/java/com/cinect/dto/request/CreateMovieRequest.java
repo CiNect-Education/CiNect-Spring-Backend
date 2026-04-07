@@ -30,7 +30,7 @@ public class CreateMovieRequest {
     @NotNull
     private LocalDate releaseDate;
     private LocalDate endDate;
-    @NotBlank
+    /** Optional in admin UI; stored non-null in DB via service default. */
     private String director;
     private List<String> castMembers;
     @Builder.Default

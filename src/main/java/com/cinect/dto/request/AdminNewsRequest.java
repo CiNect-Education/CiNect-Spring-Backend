@@ -1,25 +1,29 @@
-package com.cinect.dto.response;
+package com.cinect.dto.request;
 
 import com.cinect.entity.enums.NewsCategory;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
-import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class NewsResponse {
-    private UUID id;
+public class AdminNewsRequest {
+    @NotBlank
     private String title;
+    @NotBlank
     private String slug;
+    @NotBlank
     private String excerpt;
+    @NotBlank
     private String content;
+    @NotNull
     private NewsCategory category;
     private String imageUrl;
+    @NotBlank
     private String author;
     private List<String> tags;
-    /** Related article ids as strings (matches NestJS / frontend). */
     private List<String> relatedArticleIds;
-    private Instant publishedAt;
-    private Instant createdAt;
+    /** ISO-8601 instant string */
+    private String publishedAt;
 }

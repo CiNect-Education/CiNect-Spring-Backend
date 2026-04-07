@@ -19,6 +19,8 @@ public class CreateShowtimeRequest {
     private UUID cinemaId;
     @NotNull
     private Instant startTime;
+    /** Optional; frontend may send this. If absent, backend computes from movie duration. */
+    private Instant endTime;
     @NotNull @DecimalMin("0")
     private BigDecimal basePrice;
     @NotNull

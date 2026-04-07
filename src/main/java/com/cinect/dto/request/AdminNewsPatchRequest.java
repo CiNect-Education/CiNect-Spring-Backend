@@ -1,15 +1,12 @@
-package com.cinect.dto.response;
+package com.cinect.dto.request;
 
 import com.cinect.entity.enums.NewsCategory;
 import lombok.*;
 
-import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class NewsResponse {
-    private UUID id;
+public class AdminNewsPatchRequest {
     private String title;
     private String slug;
     private String excerpt;
@@ -18,8 +15,6 @@ public class NewsResponse {
     private String imageUrl;
     private String author;
     private List<String> tags;
-    /** Related article ids as strings (matches NestJS / frontend). */
     private List<String> relatedArticleIds;
-    private Instant publishedAt;
-    private Instant createdAt;
+    private String publishedAt;
 }
