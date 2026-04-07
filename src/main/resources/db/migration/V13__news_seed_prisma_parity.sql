@@ -1,6 +1,11 @@
 -- Extra news rows aligned with cinect-nest-backend prisma/seed.ts (not present in V2 demo seed).
 -- Safe to run on DBs that already applied V2 (ON CONFLICT DO NOTHING).
 
+-- Ensure IDs/timestamps are generated during seeding.
+ALTER TABLE news_articles ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE news_articles ALTER COLUMN created_at SET DEFAULT now();
+ALTER TABLE news_articles ALTER COLUMN published_at SET DEFAULT now();
+
 INSERT INTO news_articles (title, slug, excerpt, content, category, image_url, author, tags)
 VALUES
   (

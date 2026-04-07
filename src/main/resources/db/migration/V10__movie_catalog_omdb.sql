@@ -8,6 +8,12 @@ DELETE FROM movie_genres WHERE movie_id IN (SELECT id FROM movies WHERE slug IN 
 DELETE FROM showtimes WHERE movie_id IN (SELECT id FROM movies WHERE slug IN ('avengers-secret-wars', 'lat-mat-8-hoi-ket', 'inside-out-3', 'dune-part-three', 'mai-2', 'the-batman-2'));
 DELETE FROM movies WHERE slug IN ('avengers-secret-wars', 'lat-mat-8-hoi-ket', 'inside-out-3', 'dune-part-three', 'mai-2', 'the-batman-2');
 
+-- Ensure movie IDs are generated when seeding rows.
+-- Supabase typically has pgcrypto enabled; this default avoids needing explicit ids in VALUES.
+ALTER TABLE movies ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE movies ALTER COLUMN created_at SET DEFAULT now();
+ALTER TABLE movies ALTER COLUMN updated_at SET DEFAULT now();
+
 INSERT INTO movies (title, original_title, slug, description, poster_url, banner_url, trailer_url, duration, release_date, director, cast_members, language, subtitles, rating, rating_count, age_rating, formats, status)
 VALUES
   (

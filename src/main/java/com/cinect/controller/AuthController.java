@@ -5,6 +5,7 @@ import com.cinect.dto.request.RefreshTokenRequest;
 import com.cinect.dto.request.RegisterRequest;
 import com.cinect.dto.request.ForgotPasswordRequest;
 import com.cinect.dto.response.UserResponse;
+import com.cinect.exception.UnauthorizedException;
 import com.cinect.security.UserPrincipal;
 import com.cinect.service.AuthService;
 import com.cinect.service.OAuthService;
@@ -58,6 +59,9 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponse>> me(@AuthenticationPrincipal UserPrincipal principal) {
+        if (principal == null) {
+            throw new UnauthorizedException("Please log in to continue.");
+        }
         var data = authService.me(principal.getId());
         return ResponseEntity.ok(ApiResponse.success(data));
     }
@@ -76,6 +80,9 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal UserPrincipal principal) {
+        if (principal == null) {
+            throw new UnauthorizedException("Please log in to continue.");
+        }
         authService.logout(principal.getId());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
@@ -84,6 +91,9 @@ public class AuthController {
     public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
             @Valid @RequestBody UpdateProfileRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
+        if (principal == null) {
+            throw new UnauthorizedException("Please log in to continue.");
+        }
         var data = userService.updateProfile(principal.getId(), req);
         return ResponseEntity.ok(ApiResponse.success(data));
     }

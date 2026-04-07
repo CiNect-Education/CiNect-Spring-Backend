@@ -13,6 +13,11 @@ DELETE FROM hold_seats;
 DELETE FROM holds;
 DELETE FROM showtimes;
 
+-- Ensure showtime IDs/timestamps are generated during seeding.
+ALTER TABLE showtimes ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE showtimes ALTER COLUMN created_at SET DEFAULT now();
+ALTER TABLE showtimes ALTER COLUMN updated_at SET DEFAULT now();
+
 WITH
 days AS (
   SELECT generate_series(0, 30) AS d
