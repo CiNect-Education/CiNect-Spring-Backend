@@ -12,6 +12,7 @@ public class CreateUserRequest {
     @NotBlank
     private String fullName;
     private String phone;
+    private String city;
     @Builder.Default
     private String role = "USER";
 }

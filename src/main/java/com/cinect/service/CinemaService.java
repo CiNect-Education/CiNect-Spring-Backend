@@ -177,6 +177,7 @@ public class CinemaService {
         return RoomResponse.builder()
                 .id(r.getId())
                 .cinemaId(c.getId())
+                .cinemaName(c.getName())
                 .name(r.getName())
                 .format(r.getFormat())
                 .totalSeats(r.getTotalSeats())
