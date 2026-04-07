@@ -93,6 +93,8 @@ public class MovieService {
         );
     }
 
+<<<<<<< HEAD
+=======
     private Comparator<Movie> parseSort(String sort) {
         String value = (sort == null || sort.isBlank()) ? "releaseDate:desc" : sort.trim().toLowerCase(Locale.ROOT);
         return switch (value) {
@@ -109,6 +111,7 @@ public class MovieService {
         return value == null ? "" : value.toLowerCase(Locale.ROOT);
     }
 
+>>>>>>> 5a1f22a5e27441e2fad77fdd57707554beb41f4a
     @Transactional(readOnly = true)
     public MovieResponse findBySlug(String slug) {
         Movie movie = null;
