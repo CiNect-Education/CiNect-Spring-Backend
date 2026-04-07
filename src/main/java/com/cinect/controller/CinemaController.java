@@ -40,9 +40,9 @@ public class CinemaController {
         return ResponseEntity.ok(ApiResponse.success(data.getContent(), meta));
     }
 
-    @GetMapping("/{slug}")
-    public ResponseEntity<ApiResponse<CinemaResponse>> findBySlug(@PathVariable String slug) {
-        var data = cinemaService.findBySlug(slug);
+    @GetMapping("/{slugOrId}")
+    public ResponseEntity<ApiResponse<CinemaResponse>> findBySlug(@PathVariable String slugOrId) {
+        var data = cinemaService.findBySlug(slugOrId);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -57,7 +57,7 @@ public class CinemaController {
             @PathVariable UUID id,
             @RequestParam(required = false) Instant startFrom,
             @RequestParam(required = false) Instant startTo) {
-        var data = showtimeService.findFiltered(null, id, startFrom, startTo);
+        var data = showtimeService.findFiltered(null, id, null, startFrom, startTo);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 }

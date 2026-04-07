@@ -11,6 +11,8 @@ import java.util.UUID;
 public class RoomResponse {
     private UUID id;
     private UUID cinemaId;
+    /** Denormalized for admin UIs (e.g. showtimes grouping). */
+    private String cinemaName;
     private String name;
     private RoomFormat format;
     private Integer totalSeats;

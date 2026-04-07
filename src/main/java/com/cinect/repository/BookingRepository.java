@@ -19,12 +19,33 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     Page<Booking> findByUserIdAndStatus(UUID userId, BookingStatus status, Pageable pageable);
     List<Booking> findByStatusAndExpiresAtBefore(BookingStatus status, Instant now);
 
-    @Query("SELECT b FROM Booking b WHERE " +
-           "(:status IS NULL OR b.status = :status) " +
-           "AND (:search IS NULL OR CAST(b.id AS string) LIKE CONCAT('%', :search, '%'))")
-    Page<Booking> findAllFiltered(@Param("status") BookingStatus status,
-                                  @Param("search") String search,
-                                  Pageable pageable);
+    Page<Booking> findByStatus(BookingStatus status, Pageable pageable);
+
+    /**
+     * Admin search without status filter. Do not mix nullable enum + search in one JPQL — PostgreSQL
+     * rejects {@code (? is null or status = ?)} for enum parameters (42P18).
+     */
+    @Query("SELECT b FROM Booking b " +
+           "LEFT JOIN b.user u " +
+           "LEFT JOIN b.showtime st " +
+           "LEFT JOIN st.movie m " +
+           "WHERE LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "(m IS NOT NULL AND LOWER(m.title) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Booking> searchAdminBookingsNoStatus(@Param("search") String search, Pageable pageable);
+
+    @Query("SELECT b FROM Booking b " +
+           "LEFT JOIN b.user u " +
+           "LEFT JOIN b.showtime st " +
+           "LEFT JOIN st.movie m " +
+           "WHERE b.status = :status AND (" +
+           "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "(m IS NOT NULL AND LOWER(m.title) LIKE LOWER(CONCAT('%', :search, '%'))))")
+    Page<Booking> searchAdminBookingsWithStatus(
+            @Param("status") BookingStatus status,
+            @Param("search") String search,
+            Pageable pageable);
 
     @Query("SELECT COUNT(b) FROM Booking b WHERE b.status = 'CONFIRMED' " +
            "AND b.createdAt >= :from AND b.createdAt < :to")

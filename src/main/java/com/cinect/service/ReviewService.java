@@ -77,14 +77,18 @@ public class ReviewService {
     }
 
     private ReviewResponse toResponse(Review r) {
+        var u = r.getUser();
+        String name = u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName().trim() : "User";
         return ReviewResponse.builder()
                 .id(r.getId())
                 .movieId(r.getMovie().getId())
-                .userId(r.getUser().getId())
-                .userFullName(r.getUser().getFullName())
+                .userId(u.getId())
+                .userName(name)
+                .userAvatar(u.getAvatar())
                 .rating(r.getRating())
                 .content(r.getContent())
                 .createdAt(r.getCreatedAt())
+                .updatedAt(r.getUpdatedAt())
                 .build();
     }
 }

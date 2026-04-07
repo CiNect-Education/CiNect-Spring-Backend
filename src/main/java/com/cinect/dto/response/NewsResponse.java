@@ -18,6 +18,8 @@ public class NewsResponse {
     private String imageUrl;
     private String author;
     private List<String> tags;
+    /** Related article ids as strings (matches NestJS / frontend). */
+    private List<String> relatedArticleIds;
     private Instant publishedAt;
     private Instant createdAt;
 }

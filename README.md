@@ -47,7 +47,8 @@ Cinema booking platform backend built with Spring Boot 3.x, Java 21, PostgreSQL,
 | `JWT_ACCESS_EXP`   | Access token expiry (ms)           | `900000` (15 min)                                    |
 | `JWT_REFRESH_EXP`  | Refresh token expiry (ms)          | `604800000` (7 days)                                 |
 | `CORS_ORIGINS`     | Allowed CORS origins               | `http://localhost:3000`                              |
-| `PORT`             | Server port                        | `8080`                                               |
+| `PORT`             | Server port                        | `8081`                                               |
+| `FLYWAY_ENABLED`   | Auto-run Flyway migrations on startup | `false`                                           |
 | `HOLD_TTL`         | Seat hold TTL (minutes)            | `10`                                                 |
 | `PAYMENT_TIMEOUT`  | Payment timeout (minutes)          | `2`                                                  |
 | `POINTS_PER_BOOKING` | Loyalty points per booking      | `10`                                                 |
@@ -60,6 +61,12 @@ Cinema booking platform backend built with Spring Boot 3.x, Java 21, PostgreSQL,
 mvn spring-boot:run
 ```
 
+To auto-apply migrations (recommended for CI/staging/prod):
+
+```bash
+FLYWAY_ENABLED=true mvn spring-boot:run
+```
+
 **Tests:**
 ```bash
 mvn test
@@ -68,7 +75,7 @@ mvn test
 **Docker:**
 ```bash
 docker build -t cinect-spring-backend .
-docker run -p 8080:8080 \
+docker run -p 8081:8081 \
   -e DB_URL=jdbc:postgresql://host.docker.internal:5432/cinect_spring \
   -e DB_USERNAME=postgres \
   -e DB_PASSWORD=postgres \
@@ -85,9 +92,9 @@ docker compose up -d
 
 ## API Documentation
 
-- **Base URL:** `http://localhost:8080/api/v1`
-- **Health:** `http://localhost:8080/api/v1/actuator/health`
-- **Info:** `http://localhost:8080/api/v1/actuator/info`
+- **Base URL:** `http://localhost:8081/api/v1`
+- **Health:** `http://localhost:8081/api/v1/actuator/health`
+- **Info:** `http://localhost:8081/api/v1/actuator/info`
 
 ## Tech Stack
 

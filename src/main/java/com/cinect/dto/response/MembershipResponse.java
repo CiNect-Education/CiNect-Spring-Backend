@@ -2,24 +2,25 @@ package com.cinect.dto.response;
 
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+/**
+ * Matches Nest/Prisma membership profile JSON: nested {@code tier}, optional progression fields.
+ */
+@Getter @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class MembershipResponse {
-    private UUID id;
     private UUID userId;
-    private UUID tierId;
-    private String tierName;
-    private Integer tierLevel;
+    private MembershipTierResponse tier;
     private Integer currentPoints;
     private Integer totalPoints;
-    private Integer pointsRequired;
-    private List<String> benefits;
-    private BigDecimal discountPercent;
-    private String color;
+    private MembershipTierResponse nextTier;
+    private Integer pointsToNextTier;
+    private Integer dailyCheckinStreak;
+    private Instant lastDailyCheckinAt;
     private Instant memberSince;
     private Instant expiresAt;
 }

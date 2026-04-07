@@ -107,7 +107,7 @@ public class BookingService {
         if (pointsUsed > 0) {
             var membership = membershipService.getProfile(userId);
             if (membership != null && membership.getCurrentPoints() >= pointsUsed) {
-                pointsDiscount = BigDecimal.valueOf(pointsUsed);
+                pointsDiscount = BigDecimal.valueOf(pointsUsed).multiply(BigDecimal.TEN);
                 discountAmount = discountAmount.add(pointsDiscount);
             } else {
                 pointsUsed = 0;
@@ -287,23 +287,40 @@ public class BookingService {
         return toResponse(booking);
     }
 
+    @Transactional(readOnly = true)
     public List<BookingResponse> getRecentBookings(int limit) {
         var pageable = PageRequest.of(0, limit, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
         return bookingRepository.findAllByOrderByCreatedAtDesc(pageable).stream().map(this::toResponse).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public Page<BookingResponse> getUserBookings(UUID userId, int page, int limit) {
         Pageable pageable = PageRequest.of(page, limit);
         return bookingRepository.findByUserId(userId, pageable).map(this::toResponse);
     }
 
+    @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<BookingResponse> getBookingsForAdmin(
             com.cinect.entity.enums.BookingStatus status, String search, int page, int limit) {
-        var pageable = PageRequest.of(page, limit);
-        return bookingRepository.findAllFiltered(status, search == null || search.isBlank() ? null : search, pageable)
-                .map(this::toResponse);
+        var pageable = PageRequest.of(
+                page,
+                limit,
+                org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+        String q = search == null || search.isBlank() ? null : search.trim();
+        if (q == null) {
+            if (status == null) {
+                return bookingRepository.findAll(pageable).map(this::toResponse);
+            }
+            return bookingRepository.findByStatus(status, pageable).map(this::toResponse);
+        }
+        if (status == null) {
+            return bookingRepository.searchAdminBookingsNoStatus(q, pageable).map(this::toResponse);
+        }
+        return bookingRepository.searchAdminBookingsWithStatus(status, q, pageable).map(this::toResponse);
     }
 
+    @Transactional(readOnly = true)
     public BookingResponse getById(UUID id, UUID userId) {
         var booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
@@ -374,7 +391,8 @@ public class BookingService {
             throw new BadRequestException("Insufficient points");
         }
 
-        BigDecimal pointsValue = BigDecimal.valueOf(points * 0.01);
+        // Redemption rate: 1 point = 10 currency units.
+        BigDecimal pointsValue = BigDecimal.valueOf(points).multiply(BigDecimal.TEN);
         var newDiscount = booking.getDiscountAmount().add(pointsValue);
         booking.setPointsUsed((booking.getPointsUsed() != null ? booking.getPointsUsed() : 0) + points);
         booking.setDiscountAmount(newDiscount);
@@ -386,7 +404,7 @@ public class BookingService {
 
         var ph = PointsHistory.builder()
                 .user(booking.getUser())
-                .type(PointsTxType.REDEEM)
+                .type(PointsTxType.SPENT)
                 .points(-points)
                 .balance(membership.getCurrentPoints())
                 .description("Redeemed " + points + " points for booking")

@@ -22,7 +22,7 @@ public class Room extends BaseEntity {
     private String name;
 
     @Convert(converter = RoomFormatConverter.class)
-    @Column(nullable = false, columnDefinition = "room_format")
+    @Column(nullable = false, length = 16)
     @Builder.Default
     private RoomFormat format = RoomFormat._2D;
 

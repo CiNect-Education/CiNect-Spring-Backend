@@ -3,8 +3,8 @@ package com.cinect.controller;
 import com.cinect.dto.response.ApiResponse;
 import com.cinect.dto.response.GiftCardResponse;
 import com.cinect.dto.response.PageMeta;
+import com.cinect.dto.response.PointsHistoryResponse;
 import com.cinect.entity.Coupon;
-import com.cinect.entity.PointsHistory;
 import com.cinect.security.UserPrincipal;
 import com.cinect.service.CouponService;
 import com.cinect.service.GiftCardService;
@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/me")
@@ -49,11 +50,20 @@ public class MeController {
     }
 
     @GetMapping("/points/history")
-    public ResponseEntity<ApiResponse<List<PointsHistory>>> pointsHistory(
+    public ResponseEntity<ApiResponse<List<PointsHistoryResponse>>> pointsHistory(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int limit) {
         var data = membershipService.getPointsHistory(principal.getId(), page, limit);
+        var rows = data.getContent().stream().map(p -> PointsHistoryResponse.builder()
+                .id(p.getId())
+                .type(p.getType())
+                .points(p.getPoints())
+                .balance(p.getBalance())
+                .description(p.getDescription())
+                .bookingId(p.getBooking() != null ? p.getBooking().getId() : null)
+                .createdAt(p.getCreatedAt())
+                .build()).collect(Collectors.toList());
         var meta = PageMeta.builder()
                 .page(page)
                 .limit(limit)
@@ -62,6 +72,6 @@ public class MeController {
                 .hasNext(data.hasNext())
                 .hasPrev(data.hasPrevious())
                 .build();
-        return ResponseEntity.ok(ApiResponse.success(data.getContent(), meta));
+        return ResponseEntity.ok(ApiResponse.success(rows, meta));
     }
 }

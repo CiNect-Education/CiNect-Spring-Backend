@@ -13,6 +13,12 @@ import java.util.UUID;
 @Repository
 public interface NewsArticleRepository extends JpaRepository<NewsArticle, UUID> {
     Optional<NewsArticle> findBySlug(String slug);
-    Page<NewsArticle> findByCategory(NewsCategory category, Pageable pageable);
+
+    boolean existsBySlug(String slug);
+
+    boolean existsBySlugAndIdNot(String slug, UUID id);
+
+    Page<NewsArticle> findByCategoryOrderByPublishedAtDesc(NewsCategory category, Pageable pageable);
+
     Page<NewsArticle> findAllByOrderByPublishedAtDesc(Pageable pageable);
 }

@@ -35,11 +35,13 @@ public class RoomService {
     private final SeatRepository seatRepository;
     private final CinemaRepository cinemaRepository;
 
+    @Transactional(readOnly = true)
     public List<RoomResponse> findAllRooms() {
         var rooms = roomRepository.findAll();
         return rooms.stream().map(r -> toResponseWithSeats(r.getId())).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<RoomResponse> findByCinema(UUID cinemaId) {
         var rooms = roomRepository.findByCinemaIdAndIsActiveTrue(cinemaId);
         return rooms.stream().map(this::toResponse).collect(Collectors.toList());
@@ -83,6 +85,7 @@ public class RoomService {
         return toResponse(room);
     }
 
+    @Transactional(readOnly = true)
     public List<RoomResponse> findAllForAdmin(UUID cinemaId) {
         if (cinemaId != null) {
             return roomRepository.findByCinemaIdAndIsActiveTrue(cinemaId).stream()
@@ -92,6 +95,7 @@ public class RoomService {
         return findAllRooms();
     }
 
+    @Transactional(readOnly = true)
     public RoomResponse findById(UUID roomId) {
         var room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new ResourceNotFoundException("Room not found"));
@@ -184,6 +188,7 @@ public class RoomService {
         return RoomResponse.builder()
                 .id(room.getId())
                 .cinemaId(room.getCinema().getId())
+                .cinemaName(room.getCinema().getName())
                 .name(room.getName())
                 .format(room.getFormat())
                 .totalSeats(room.getTotalSeats())
@@ -264,6 +269,7 @@ public class RoomService {
         return RoomResponse.builder()
                 .id(r.getId())
                 .cinemaId(r.getCinema().getId())
+                .cinemaName(r.getCinema().getName())
                 .name(r.getName())
                 .format(r.getFormat())
                 .totalSeats(r.getTotalSeats())
@@ -279,6 +285,7 @@ public class RoomService {
         return SeatResponse.builder()
                 .id(s.getId())
                 .roomId(s.getRoom().getId())
+                .row(s.getRowLabel())
                 .rowLabel(s.getRowLabel())
                 .number(s.getNumber())
                 .type(s.getType())

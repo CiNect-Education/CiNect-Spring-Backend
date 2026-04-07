@@ -6,7 +6,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,9 +24,29 @@ public class ShowtimeController {
     public ResponseEntity<ApiResponse<List<ShowtimeResponse>>> findFiltered(
             @RequestParam(required = false) UUID movieId,
             @RequestParam(required = false) UUID cinemaId,
+            @RequestParam(required = false) String date,
+            @RequestParam(required = false) String city,
             @RequestParam(required = false) Instant startFrom,
             @RequestParam(required = false) Instant startTo) {
-        var data = showtimeService.findFiltered(movieId, cinemaId, startFrom, startTo);
+        Instant from = startFrom;
+        Instant to = startTo;
+        if (date != null && !date.isBlank()) {
+            var ld = LocalDate.parse(date.strip());
+            ZoneId z = ZoneId.systemDefault();
+            var dayStart = ld.atStartOfDay(z).toInstant();
+            var now = Instant.now();
+            // Hide already-started showtimes when the requested date is today.
+            from = dayStart.isBefore(now) ? now : dayStart;
+            to = ld.plusDays(1).atStartOfDay(z).toInstant();
+        } else {
+            if (from == null) {
+                from = Instant.now();
+                to = to != null ? to : from.plus(Duration.ofDays(7));
+            } else if (to == null) {
+                to = from.plus(Duration.ofDays(7));
+            }
+        }
+        var data = showtimeService.findFiltered(movieId, cinemaId, city, from, to);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -32,8 +55,9 @@ public class ShowtimeController {
             @RequestParam(required = false) UUID movieId,
             @RequestParam(required = false) UUID cinemaId,
             @RequestParam(required = false) String date,
-            @RequestParam(required = false) String format) {
-        var data = showtimeService.search(movieId, cinemaId, date, format);
+            @RequestParam(required = false) String format,
+            @RequestParam(required = false) String city) {
+        var data = showtimeService.search(movieId, cinemaId, date, format, city);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 

@@ -1,0 +1,4 @@
+ALTER TABLE memberships
+    ADD COLUMN IF NOT EXISTS daily_checkin_streak INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS last_daily_checkin_at TIMESTAMPTZ NULL;
+

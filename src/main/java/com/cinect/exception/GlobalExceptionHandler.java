@@ -10,6 +10,9 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
+import org.apache.catalina.connector.ClientAbortException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -79,6 +82,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleTooManyRequests(TooManyRequestsException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /**
+     * Client disconnected while response was being written (tab closed, refresh, dev server HMR, etc.).
+     * We don't want this to appear as a 500 on the frontend.
+     */
+    @ExceptionHandler({AsyncRequestNotUsableException.class, AsyncRequestTimeoutException.class, ClientAbortException.class})
+    public ResponseEntity<ApiResponse<Void>> handleClientAbort(Exception ex) {
+        log.warn("Client aborted request: {}", ex.getMessage());
+        // 499 is a common "client closed request" code but not in HttpStatus enum; use 200 with no body.
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @ExceptionHandler(Exception.class)
