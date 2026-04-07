@@ -10,8 +10,11 @@ public class ReviewResponse {
     private UUID id;
     private UUID movieId;
     private UUID userId;
-    private String userFullName;
+    /** Display name — JSON field matches NestJS / frontend contract ({@code userName}). */
+    private String userName;
+    private String userAvatar;
     private Integer rating;
     private String content;
     private Instant createdAt;
+    private Instant updatedAt;
 }
