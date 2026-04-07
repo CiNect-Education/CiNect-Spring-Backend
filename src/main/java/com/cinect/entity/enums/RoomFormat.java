@@ -1,5 +1,6 @@
 package com.cinect.entity.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum RoomFormat {
@@ -11,6 +12,17 @@ public enum RoomFormat {
 
     @JsonValue
     public String getValue() { return value; }
+
+    /** Deserialize JSON {@code "2D"}, {@code "IMAX"}, etc. (not only enum names like {@code _2D}). */
+    @JsonCreator
+    public static RoomFormat fromJson(String v) {
+        if (v == null || v.isBlank()) return _2D;
+        try {
+            return fromValue(v.trim());
+        } catch (IllegalArgumentException ex) {
+            return _2D;
+        }
+    }
 
     public static RoomFormat fromValue(String v) {
         for (RoomFormat f : values()) {

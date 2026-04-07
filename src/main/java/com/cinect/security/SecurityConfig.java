@@ -57,6 +57,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/banners/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/support/contact").permitAll()
                 .requestMatchers(HttpMethod.POST, "/support/ticket").permitAll()
+                .requestMatchers(HttpMethod.POST, "/support/chatbot").permitAll()
                 // Admin endpoints
                 .requestMatchers("/admin/**").hasAnyRole("ADMIN", "STAFF")
                 // Everything else requires auth

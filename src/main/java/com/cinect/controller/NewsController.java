@@ -19,12 +19,27 @@ public class NewsController {
 
     private final NewsService newsService;
 
+    /** {@code page} is 1-based (same as NestJS {@code GET /news}). */
     @GetMapping
     public ResponseEntity<ApiResponse<List<NewsResponse>>> findAll(
             @RequestParam(required = false) NewsCategory category,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) String ids,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int limit) {
-        var data = newsService.findAll(category, page, limit);
+        if (ids != null && !ids.isBlank()) {
+            var list = newsService.findAllByIdsCsv(ids);
+            var meta = PageMeta.builder()
+                    .page(1)
+                    .limit(list.size())
+                    .total(list.size())
+                    .totalPages(1)
+                    .hasNext(false)
+                    .hasPrev(false)
+                    .build();
+            return ResponseEntity.ok(ApiResponse.success(list, meta));
+        }
+        int pageIndex = Math.max(0, page - 1);
+        var data = newsService.findAll(category, pageIndex, limit);
         var meta = PageMeta.builder()
                 .page(page)
                 .limit(limit)

@@ -33,7 +33,10 @@ public class ShowtimeController {
         if (date != null && !date.isBlank()) {
             var ld = LocalDate.parse(date.strip());
             ZoneId z = ZoneId.systemDefault();
-            from = ld.atStartOfDay(z).toInstant();
+            var dayStart = ld.atStartOfDay(z).toInstant();
+            var now = Instant.now();
+            // Hide already-started showtimes when the requested date is today.
+            from = dayStart.isBefore(now) ? now : dayStart;
             to = ld.plusDays(1).atStartOfDay(z).toInstant();
         } else {
             if (from == null) {

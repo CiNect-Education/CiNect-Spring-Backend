@@ -40,9 +40,9 @@ public class CinemaController {
         return ResponseEntity.ok(ApiResponse.success(data.getContent(), meta));
     }
 
-    @GetMapping("/{slug}")
-    public ResponseEntity<ApiResponse<CinemaResponse>> findBySlug(@PathVariable String slug) {
-        var data = cinemaService.findBySlug(slug);
+    @GetMapping("/{slugOrId}")
+    public ResponseEntity<ApiResponse<CinemaResponse>> findBySlug(@PathVariable String slugOrId) {
+        var data = cinemaService.findBySlug(slugOrId);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
