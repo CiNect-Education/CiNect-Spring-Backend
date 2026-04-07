@@ -57,6 +57,7 @@ public class MovieService {
         return pageResult.map(this::toResponse);
     }
 
+    @Transactional(readOnly = true)
     public MovieResponse findBySlug(String slug) {
         var movie = movieRepository.findBySlugAndIsDeletedFalse(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Movie not found: " + slug));
